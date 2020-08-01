@@ -316,6 +316,7 @@ proc selectInto*[T](s: Selector[T], timeout: int,
 
   var count = ioselect(cint(s.maxFD) + 1, addr(rset), addr(wset),
                        addr(eset), ptv)
+
   if count < 0:
     result = 0
     when defined(windows):

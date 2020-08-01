@@ -78,8 +78,8 @@ else:
 
 type
   SelectEventImpl = object
-    efd: cint
-  SelectEvent* = ptr SelectEventImpl
+    efd: EpollEvent
+  SelectEvent* = SelectEventImpl
 
 proc newSelector*[T](): Selector[T] =
   # Start with a reasonable size, checkFd() will grow this on demand
@@ -116,12 +116,34 @@ proc close*[T](s: Selector[T]) =
   if res != 0:
     raiseIOSelectorsError(osLastError())
 
-# proc newSelectEvent*(): SelectEvent =
-#   let fdci = eventfd(0, O_CLOEXEC or O_NONBLOCK)
-#   if fdci == -1:
-#     raiseIOSelectorsError(osLastError())
-#   result = cast[SelectEvent](allocShared0(sizeof(SelectEventImpl)))
-#   result.efd = fdci
+proc newSelectEvent*(): SelectEvent =
+  let event = EpollEvent(events: 0, data: EpollData(u64: 0))
+
+
+  # let fdci = eventfd(0, O_CLOEXEC or O_NONBLOCK)
+  # if fdci == -1:
+  #   raiseIOSelectorsError(osLastError())
+  # result = cast[SelectEvent](allocShared0(sizeof(SelectEventImpl)))
+  # result.efd = fdci
+
+
+proc registerHandle*[T](s: Selector[T], fd: EpollHandle,
+                        events: set[Event], socket: Socket) =
+  # let fdi = int(fd)
+  # s.checkFd(fdi)
+  # doAssert(s.fds[fdi].ident == InvalidIdent, "Descriptor $# already registered" % $fdi)
+  # s.setKey(fdi, events, 0, data)
+  # epoll_ctl*(ephnd: EpollHandle; op: cint; 
+  #               sock: SOCKET; event: ptr epoll_event): cint
+
+  if events != {}:
+    var epv = EpollEvent(events: EPOLLRDHUP)
+    # epv.data.u64 = fd
+    if Event.Read in events: epv.events = epv.events or EPOLLIN
+    if Event.Write in events: epv.events = epv.events or EPOLLOUT
+    if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, socket, addr epv) != 0:
+      raiseIOSelectorsError(osLastError())
+    inc(s.count)
 
 let s = newSelector[int]()
 close(s)
