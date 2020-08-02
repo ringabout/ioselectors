@@ -136,9 +136,41 @@ proc registerHandle*[T](s: Selector[T], fd: EpollHandle,
     inc(s.count)
 
 
+# proc epoll_wait*(ephnd: EpollHandle,
+#                  events: ptr epoll_event,
+#                  maxevents: cint,
+#                  timeout: cint): cint
+
+const MAX_EPOLL_EVENTS = 64
+
+proc selectInto*[T](s: Selector[T], timeout: int,
+                    results: var openArray[ReadyKey]): int =
+
+  var
+    resTable: array[MAX_EPOLL_EVENTS, EpollEvent]
+    maxres = MAX_EPOLL_EVENTS
+    i, k: int
+
+  if maxres > len(results):
+    maxres = len(results)
+
+  # verifySelectParams(timeout)
+
+  let count = epoll_wait(s.epollFD, addr(resTable[0]), maxres.cint,
+                         timeout.cint)
+
+  echo count
+  echo resTable
+
+  discard
+
 let s = newSelector[int]()
 let fd = epoll_create1(0)
 let sock = createNativeSocket(nativesockets.AF_INET, SOCK_STREAM, IPPROTO_TCP)
 registerHandle[int](s, fd, {Read, Write}, sock.culonglong, 12)
+
+var res: array[64, ReadyKey]
+echo selectInto(s, 120, res)
+echo res.repr
 echo s.repr
 close(s)
