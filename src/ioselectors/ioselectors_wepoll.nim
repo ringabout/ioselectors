@@ -72,7 +72,7 @@ else:
     SelectorImpl[T] = object
       epollFD: EpollHandle
       numFD: int
-      fds: seq[SelectorKey[T]]
+      # fds: seq[SelectorKey[T]]
       count: int
     Selector*[T] = ref SelectorImpl[T]
 
@@ -97,20 +97,20 @@ proc newSelector*[T](): Selector[T] =
     result = cast[Selector[T]](allocShared0(sizeof(SelectorImpl[T])))
     result.epollFD = epollFD
     result.numFD = numFD
-    result.fds = allocSharedArray[SelectorKey[T]](numFD)
+    # result.fds = allocSharedArray[SelectorKey[T]](numFD)
   else:
     result = Selector[T]()
     result.epollFD = epollFD
     result.numFD = numFD
-    result.fds = newSeq[SelectorKey[T]](numFD)
+    # result.fds = newSeq[SelectorKey[T]](numFD)
 
-  for i in 0 ..< numFD:
-    result.fds[i].ident = InvalidIdent
+  # for i in 0 ..< numFD:
+  #   result.fds[i].ident = InvalidIdent
 
 proc close*[T](s: Selector[T]) =
   let res = epoll_close(s.epollFD)
   when hasThreadSupport:
-    deallocSharedArray(s.fds)
+    # deallocSharedArray(s.fds)
     deallocShared(cast[pointer](s))
   
   if res != 0:
@@ -120,30 +120,25 @@ proc newSelectEvent*(): SelectEvent =
   let event = EpollEvent(events: 0, data: EpollData(u64: 0))
 
 
-  # let fdci = eventfd(0, O_CLOEXEC or O_NONBLOCK)
-  # if fdci == -1:
-  #   raiseIOSelectorsError(osLastError())
-  # result = cast[SelectEvent](allocShared0(sizeof(SelectEventImpl)))
-  # result.efd = fdci
-
-
 proc registerHandle*[T](s: Selector[T], fd: EpollHandle,
-                        events: set[Event], socket: Socket) =
-  # let fdi = int(fd)
-  # s.checkFd(fdi)
-  # doAssert(s.fds[fdi].ident == InvalidIdent, "Descriptor $# already registered" % $fdi)
-  # s.setKey(fdi, events, 0, data)
+                        events: set[Event], socket: Socket, data: T) =
+
   # epoll_ctl*(ephnd: EpollHandle; op: cint; 
   #               sock: SOCKET; event: ptr epoll_event): cint
 
   if events != {}:
-    var epv = EpollEvent(events: EPOLLRDHUP)
-    # epv.data.u64 = fd
-    if Event.Read in events: epv.events = epv.events or EPOLLIN
-    if Event.Write in events: epv.events = epv.events or EPOLLOUT
+    var epv = EpollEvent(events: EPOLLRDHUP.uint32)
+    epv.data.hnd = fd
+    if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
+    if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
     if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, socket, addr epv) != 0:
       raiseIOSelectorsError(osLastError())
     inc(s.count)
 
+
 let s = newSelector[int]()
+let fd = epoll_create1(0)
+let sock = createNativeSocket(nativesockets.AF_INET, SOCK_STREAM, IPPROTO_TCP)
+registerHandle[int](s, fd, {Read, Write}, sock.culonglong, 12)
+echo s.repr
 close(s)

@@ -1,12 +1,3 @@
-#
-#
-#            Nim's Runtime Library
-#        (c) Copyright 2016 Eugene Kabanov
-#
-#    See the file "copying.txt", included in this
-#    distribution, for details about the copyright.
-#
-
 ## This module allows high-level and efficient I/O multiplexing.
 ##
 ## Supported OS primitives: ``epoll``, ``kqueue``, ``poll`` and

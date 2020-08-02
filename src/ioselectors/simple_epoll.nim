@@ -6,39 +6,9 @@ import times
 # Maximum number of events that can be returned
 const MAX_EPOLL_EVENTS = 64
 
-
-# type
-#   SignalFdInfo* {.importc: "struct signalfd_siginfo",
-#                   header: "<sys/signalfd.h>", pure, final.} = object
-#     ssi_signo*: uint32
-#     ssi_errno*: int32
-#     ssi_code*: int32
-#     ssi_pid*: uint32
-#     ssi_uid*: uint32
-#     ssi_fd*: int32
-#     ssi_tid*: uint32
-#     ssi_band*: uint32
-#     ssi_overrun*: uint32
-#     ssi_trapno*: uint32
-#     ssi_status*: int32
-#     ssi_int*: int32
-#     ssi_ptr*: uint64
-#     ssi_utime*: uint64
-#     ssi_stime*: uint64
-#     ssi_addr*: uint64
-#     pad* {.importc: "__pad".}: array[0..47, uint8]
-
-# proc timerfd_create(clock_id: ClockId, flags: cint): cint
-#      {.cdecl, importc: "timerfd_create", header: "<sys/timerfd.h>".}
-# proc timerfd_settime(ufd: cint, flags: cint,
-#                       utmr: var Itimerspec, otmr: var Itimerspec): cint
-#      {.cdecl, importc: "timerfd_settime", header: "<sys/timerfd.h>".}
 proc eventfd(count: cuint, flags: cint): cint
      {.cdecl, importc: "eventfd", header: "<sys/eventfd.h>".}
 
-
-# proc signalfd(fd: cint, mask: var Sigset, flags: cint): cint
-#       {.cdecl, importc: "signalfd", header: "<sys/signalfd.h>".}
 
 when hasThreadSupport:
   type
@@ -240,96 +210,6 @@ proc unregister*[T](s: Selector[T], ev: SelectEvent) =
     raiseIOSelectorsError(osLastError())
   dec(s.count)
   clearKey(pkey)
-
-proc registerTimer*[T](s: Selector[T], timeout: int, oneshot: bool,
-                       data: T): int {.discardable.} =
-  var
-    newTs: Itimerspec
-    oldTs: Itimerspec
-  let fdi = timerfd_create(CLOCK_MONOTONIC, O_CLOEXEC or O_NONBLOCK).int
-  if fdi == -1:
-    raiseIOSelectorsError(osLastError())
-
-  s.checkFd(fdi)
-  doAssert(s.fds[fdi].ident == InvalidIdent)
-
-  var events = {Event.Timer}
-  var epv = EpollEvent(events: EPOLLIN or EPOLLRDHUP)
-  epv.data.u64 = fdi.uint
-
-  if oneshot:
-    newTs.it_interval.tv_sec = posix.Time(0)
-    newTs.it_interval.tv_nsec = 0
-    newTs.it_value.tv_sec = posix.Time(timeout div 1_000)
-    newTs.it_value.tv_nsec = (timeout %% 1_000) * 1_000_000
-    incl(events, Event.Oneshot)
-    epv.events = epv.events or EPOLLONESHOT
-  else:
-    newTs.it_interval.tv_sec = posix.Time(timeout div 1000)
-    newTs.it_interval.tv_nsec = (timeout %% 1_000) * 1_000_000
-    newTs.it_value.tv_sec = newTs.it_interval.tv_sec
-    newTs.it_value.tv_nsec = newTs.it_interval.tv_nsec
-
-  if timerfd_settime(fdi.cint, cint(0), newTs, oldTs) != 0:
-    raiseIOSelectorsError(osLastError())
-  if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, fdi.cint, addr epv) != 0:
-    raiseIOSelectorsError(osLastError())
-  s.setKey(fdi, events, 0, data)
-  inc(s.count)
-  result = fdi
-
-proc registerSignal*[T](s: Selector[T], signal: int,
-                        data: T): int {.discardable.} =
-  var
-    nmask: Sigset
-    omask: Sigset
-
-  discard sigemptyset(nmask)
-  discard sigemptyset(omask)
-  discard sigaddset(nmask, cint(signal))
-  blockSignals(nmask, omask)
-
-  let fdi = signalfd(-1, nmask, O_CLOEXEC or O_NONBLOCK).int
-  if fdi == -1:
-    raiseIOSelectorsError(osLastError())
-
-  s.checkFd(fdi)
-  doAssert(s.fds[fdi].ident == InvalidIdent)
-
-  var epv = EpollEvent(events: EPOLLIN or EPOLLRDHUP)
-  epv.data.u64 = fdi.uint
-  if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, fdi.cint, addr epv) != 0:
-    raiseIOSelectorsError(osLastError())
-  s.setKey(fdi, {Event.Signal}, signal, data)
-  inc(s.count)
-  result = fdi
-
-proc registerProcess*[T](s: Selector, pid: int,
-                          data: T): int {.discardable.} =
-  var
-    nmask: Sigset
-    omask: Sigset
-
-  discard sigemptyset(nmask)
-  discard sigemptyset(omask)
-  discard sigaddset(nmask, posix.SIGCHLD)
-  blockSignals(nmask, omask)
-
-  let fdi = signalfd(-1, nmask, O_CLOEXEC or O_NONBLOCK).int
-  if fdi == -1:
-    raiseIOSelectorsError(osLastError())
-
-  s.checkFd(fdi)
-  doAssert(s.fds[fdi].ident == InvalidIdent)
-
-  var epv = EpollEvent(events: EPOLLIN or EPOLLRDHUP)
-  epv.data.u64 = fdi.uint
-  epv.events = EPOLLIN or EPOLLRDHUP
-  if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, fdi.cint, addr epv) != 0:
-    raiseIOSelectorsError(osLastError())
-  s.setKey(fdi, {Event.Process, Event.Oneshot}, pid, data)
-  inc(s.count)
-  result = fdi
 
 proc registerEvent*[T](s: Selector[T], ev: SelectEvent, data: T) =
   let fdi = int(ev.efd)
