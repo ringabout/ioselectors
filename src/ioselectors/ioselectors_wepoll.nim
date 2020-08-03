@@ -121,17 +121,17 @@ proc newSelectEvent*(): SelectEvent =
 
 
 proc registerHandle*[T](s: Selector[T], fd: EpollHandle,
-                        events: set[Event], socket: Socket, data: T) =
+                        events: set[Event], socket: SocketHandle, data: T) =
 
   # epoll_ctl*(ephnd: EpollHandle; op: cint; 
   #               sock: SOCKET; event: ptr epoll_event): cint
 
   if events != {}:
     var epv = EpollEvent(events: EPOLLRDHUP.uint32)
-    epv.data.hnd = fd
+    epv.data.fd = socket.cint
     if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
     if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
-    if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, socket, addr epv) != 0:
+    if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, socket.culonglong, addr epv) != 0:
       raiseIOSelectorsError(osLastError())
     inc(s.count)
 
@@ -159,18 +159,62 @@ proc selectInto*[T](s: Selector[T], timeout: int,
   let count = epoll_wait(s.epollFD, addr(resTable[0]), maxres.cint,
                          timeout.cint)
 
-  echo count
-  echo resTable
 
-  discard
+  if count == 1:
+    once:
+      echo "Count -> ", count
+      echo resTable[0].repr
+
+import net
 
 let s = newSelector[int]()
 let fd = epoll_create1(0)
-let sock = createNativeSocket(nativesockets.AF_INET, SOCK_STREAM, IPPROTO_TCP)
-registerHandle[int](s, fd, {Read, Write}, sock.culonglong, 12)
 
-var res: array[64, ReadyKey]
-echo selectInto(s, 120, res)
-echo res.repr
-echo s.repr
+if fd == nil:
+  echo "Error: epoll_create1"
+  raiseIOSelectorsError(osLastError())
+
+var sock = newSocket()
+sock.bindAddr(Port(1234))
+sock.listen()
+
+let sockfd = getFd(sock)
+# let sock = socket(wl.AF_INET, 1, 6)
+registerHandle[int](s, fd, {Read, Write}, sockfd, 12)
+
+
+# for (;;) {
+#   nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+#   if (nfds == -1) {
+#       perror("epoll_wait");
+#       exit(EXIT_FAILURE);
+#   }
+
+#   for (n = 0; n < nfds; ++n) {
+#       if (events[n].data.fd == listen_sock) 
+#         conn_sock = accept(listen_sock,
+#                           (struct sockaddr *) &addr, &addrlen);
+#         if (conn_sock == -1) {
+#             perror("accept");
+#             exit(EXIT_FAILURE);
+#         }
+#         setnonblocking(conn_sock);
+#         ev.events = EPOLLIN | EPOLLET;
+#         ev.data.fd = conn_sock;
+#         if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
+#                     &ev) == -1) {
+#             perror("epoll_ctl: conn_sock");
+#             exit(EXIT_FAILURE);
+#         }
+
+
+while true:
+  var res: array[64, ReadyKey]
+  discard selectInto(s, 120, res)
+  for data in res:
+    if data.fd == sock.getfd.int:
+      echo "true"
+
+# echo res.repr
+# echo s.repr
 close(s)
