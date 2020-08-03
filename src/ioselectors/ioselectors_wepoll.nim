@@ -167,9 +167,10 @@ template checkFd(s, f) =
 const MAX_EPOLL_EVENTS = 64
 
 proc selectInto*[T](s: Selector[T], timeout: int,
-                    results: var openArray[EpollEvent]): int =
+                    results: var openArray[ReadyKey]): int =
 
   var
+    resTable: array[MAX_EPOLL_EVENTS, EpollEvent]
     maxres = MAX_EPOLL_EVENTS
 
   if maxres > len(results):
@@ -177,73 +178,93 @@ proc selectInto*[T](s: Selector[T], timeout: int,
 
   # verifySelectParams(timeout)
 
-  let count = epoll_wait(s.epollFD, addr(results[0]), maxres.cint,
+  let count = epoll_wait(s.epollFD, addr(resTable[0]), maxres.cint,
                          timeout.cint)
 
 
   if count < 0:
     raiseIOSelectorsError(osLastError())
-  if count == 0:
+  elif count == 0:
     result = 0
+  else:
+    var idx = 0
+    var k = 0
+    while idx < count:
+      let fd = resTable[idx].data.fd
+      let pevents = resTable[idx].events
+      let fevents = s.fds[fd].events
+      var rkey = ReadyKey(fd: fd * 4, events: {})
+
+      if (pevents and EPOLLOUT) != 0:
+        rkey.events.incl(Event.Write)
+
+      if (pevents and EPOLLIN) != 0:
+        if Event.Read in pevents:
+          rkey.events.incl(Event.Read)
+
+      results[k] = rkey
+      inc idx
+      inc k
 
 
-import net
+# when isMainModule:
+#   import net
 
-let s = newSelector[int]()
-let fd = epoll_create1(0)
+#   let s = newSelector[int]()
+#   let fd = epoll_create1(0)
 
-if fd == nil:
-  echo "Error: epoll_create1"
-  raiseIOSelectorsError(osLastError())
+#   if fd == nil:
+#     echo "Error: epoll_create1"
+#     raiseIOSelectorsError(osLastError())
 
-var sock = newSocket()
-sock.bindAddr(Port(1234))
-sock.listen()
-sock.setSockOpt(OptReusePort, true)
+#   var sock = newSocket()
+#   sock.bindAddr(Port(1234))
+#   sock.listen()
+#   sock.setSockOpt(OptReusePort, true)
 
-let sockfd = getFd(sock)
-# let sock = socket(wl.AF_INET, 1, 6)
-registerHandle[int](s, fd, {Read, Write}, sockfd, 12)
+#   let sockfd = getFd(sock)
+#   # let sock = socket(wl.AF_INET, 1, 6)
+#   registerHandle[int](s, fd, {Read, Write}, sockfd, 12)
 
 
-# for (;;) {
-#   nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
-#   if (nfds == -1) {
-#       perror("epoll_wait");
-#       exit(EXIT_FAILURE);
-#   }
+#   # for (;;) {
+#   #   nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+#   #   if (nfds == -1) {
+#   #       perror("epoll_wait");
+#   #       exit(EXIT_FAILURE);
+#   #   }
 
-#   for (n = 0; n < nfds; ++n) {
-#       if (events[n].data.fd == listen_sock) 
-#         conn_sock = accept(listen_sock,
-#                           (struct sockaddr *) &addr, &addrlen);
-#         if (conn_sock == -1) {
-#             perror("accept");
-#             exit(EXIT_FAILURE);
-#         }
-#         setnonblocking(conn_sock);
-#         ev.events = EPOLLIN | EPOLLET;
-#         ev.data.fd = conn_sock;
-#         if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
-#                     &ev) == -1) {
-#             perror("epoll_ctl: conn_sock");
-#             exit(EXIT_FAILURE);
-#         }
+#   #   for (n = 0; n < nfds; ++n) {
+#   #       if (events[n].data.fd == listen_sock) 
+#   #         conn_sock = accept(listen_sock,
+#   #                           (struct sockaddr *) &addr, &addrlen);
+#   #         if (conn_sock == -1) {
+#   #             perror("accept");
+#   #             exit(EXIT_FAILURE);
+#   #         }
+#   #         setnonblocking(conn_sock);
+#   #         ev.events = EPOLLIN | EPOLLET;
+#   #         ev.data.fd = conn_sock;
+#   #         if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
+#   #                     &ev) == -1) {
+#   #             perror("epoll_ctl: conn_sock");
+#   #             exit(EXIT_FAILURE);
+#   #         }
 
-echo sock.getfd.int
+#   echo sock.getfd.int
 
-import strformat
+#   import strformat
 
-while true:
-  var res: array[MAX_EPOLL_EVENTS, EpollEvent]
-  discard selectInto(s, 120, res)
-  # echo fmt"{res[0].fd = } == {sock.getfd.int = }" 
-  for data in res:
-    if data.data.fd == sock.getfd.int:
-      echo "true"
-      sock.close()
+#   while true:
+#     var res: array[MAX_EPOLL_EVENTS, EpollEvent]
+#     discard selectInto(s, 120, res)
+#     # echo fmt"{res[0].fd = } == {sock.getfd.int = }" 
+#     for data in res:
+#       if data.data.fd == sock.getfd.int:
+#         echo "true"
+#         sock.close()
 
-# echo res.repr
-# echo s.repr
-close(sock)
-close(s)
+#   # echo res.repr
+#   # echo s.repr
+#   close(sock)
+#   close(s)
