@@ -38,6 +38,7 @@ when defined(nimdoc):
     Selector*[T] = ref object
       ## An object which holds descriptors to be checked for read/write status
 
+
     Event* {.pure.} = enum
       ## An enum which hold event types
       Read,        ## Descriptor is available for read
