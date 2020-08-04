@@ -1,70 +1,20 @@
-import wepoll, os, nativesockets, winlean
+#            IO selectors
+#        (c) Copyright 2020 Zeshen Xing
 
+
+import wepoll, os, winlean
+import nativesockets
 
 import strutils
 
-const hasThreadSupport = false
 
-when hasThreadSupport:
-  import locks
-
-  type
-    SharedArray[T] = UncheckedArray[T]
-
-  proc allocSharedArray[T](nsize: int): ptr SharedArray[T] =
-    result = cast[ptr SharedArray[T]](allocShared0(sizeof(T) * nsize))
-
-  proc reallocSharedArray[T](sa: ptr SharedArray[T], nsize: int): ptr SharedArray[T] =
-    result = cast[ptr SharedArray[T]](reallocShared(sa, sizeof(T) * nsize))
-
-  proc deallocSharedArray[T](sa: ptr SharedArray[T]) =
-    deallocShared(cast[pointer](sa))
-type
-  Event* {.pure.} = enum
-    Read, Write, Timer, Signal, Process, Vnode, User, Error, Oneshot,
-    Finished, VnodeWrite, VnodeDelete, VnodeExtend, VnodeAttrib, VnodeLink,
-    VnodeRename, VnodeRevoke
-
-type
-  IOSelectorsException* = object of CatchableError
-
-  ReadyKey* = object
-    fd* : int
-    events*: set[Event]
-    errorCode*: OSErrorCode
-
-  SelectorKey[T] = object
-    ident: int
-    events: set[Event]
-    param: int
-    data: T
-
-const
-  InvalidIdent = -1
-
-proc raiseIOSelectorsError[T](message: T) =
-  var msg = ""
-  when T is string:
-    msg.add(message)
-  elif T is OSErrorCode:
-    msg.add(osErrorMsg(message) & " (code: " & $int(message) & ")")
-  else:
-    msg.add("Internal Error\n")
-  var err = newException(IOSelectorsException, msg)
-  raise err
-
-proc setNonBlocking(fd: cint) {.inline.} =
-  setBlocking(fd.SocketHandle, false)
-
-
-##############################################################################
 when hasThreadSupport:
   type
     SelectorImpl[T] = object
       epollFD: EpollHandle
       maxFD: int
       numFD: int
-      fds: ptr SharedArray[SelectorKey[T]]
+      fds*: ptr SharedArray[SelectorKey[T]]
       count: int
     Selector*[T] = ptr SelectorImpl[T]
 else:
@@ -72,7 +22,7 @@ else:
     SelectorImpl[T] = object
       epollFD: EpollHandle
       numFD: int
-      fds: seq[SelectorKey[T]]
+      fds*: seq[SelectorKey[T]]
       count: int
     Selector*[T] = ref SelectorImpl[T]
 
@@ -121,26 +71,115 @@ template setKey(s, pident, pevents, pparam, pdata: untyped) =
   skey.ident = pident
   skey.events = pevents
   skey.param = pparam
-  skey.data = data
+  skey.data = pdata
 
-proc registerHandle*[T](s: Selector[T], fd: EpollHandle,
-                        events: set[Event], socket: SocketHandle, data: T) =
+template clearKey[T](key: ptr SelectorKey[T]) =
+  var empty: T
+  key.ident = InvalidIdent
+  key.events = {}
+  key.data = empty
+
+proc changeFd*(s: SocketHandle|int|cint): int =
+  result = s.int shr 2
+
+proc restoreFd*(s: SocketHandle|int|cint): int =
+  result = s.int shl 2
+
+proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
+  result = s.fds[fd.changeFd].ident != InvalidIdent
+
+
+# proc registerHandle*[T](s: Selector[T], fd: int | SocketHandle,
+#                         events: set[Event], data: T) =
+#   let fdi = int(fd)
+#   s.checkFd(fdi)
+#   doAssert(s.fds[fdi].ident == InvalidIdent, "Descriptor $# already registered" % $fdi)
+#   s.setKey(fdi, events, 0, data)
+#   if events != {}:
+#     var epv = EpollEvent(events: EPOLLRDHUP)
+#     epv.data.u64 = fdi.uint
+#     if Event.Read in events: epv.events = epv.events or EPOLLIN
+#     if Event.Write in events: epv.events = epv.events or EPOLLOUT
+#     if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, fdi.cint, addr epv) != 0:
+#       raiseIOSelectorsError(osLastError())
+#     inc(s.count)
+
+proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event], data: T) =
 
   # epoll_ctl*(ephnd: EpollHandle; op: cint; 
-  #               sock: SOCKET; event: ptr epoll_event): cint
-
+  #            sock: SOCKET; event: ptr epoll_event): cint
+  let fd = socket.changeFd.cint
+  s.checkFd(fd)
+  doAssert(s.fds[fd].ident == InvalidIdent, "Descriptor $# already registered" % $fd)
+  s.setKey(fd, events, 0, data)
+  echo "Register: ", s.fds[fd].repr
   if events != {}:
-    let fd = socket.cint shr 2
-    s.checkFd(fd)
-    doAssert(s.fds[fd].ident == InvalidIdent, "Descriptor $# already registered" % $fd)
-    s.setKey(fd, events, 0, data)
     var epv = EpollEvent(events: EPOLLRDHUP.uint32)
     epv.data.fd = fd
     if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
     if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
-    if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, socket.culonglong, addr epv) != 0:
+    if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, EpollSocket(socket), addr epv) != 0:
       raiseIOSelectorsError(osLastError())
     inc(s.count)
+  echo "After Register: ", s.fds[fd].repr
+
+proc updateHandle*[T](s: Selector[T], socket: int | SocketHandle, events: set[Event]) =
+  let maskEvents = {Event.Timer, Event.Signal, Event.Process, Event.Vnode,
+                    Event.User, Event.Oneshot, Event.Error}
+  let fd = socket.changeFd.cint
+  s.checkFd(fd)
+  var pkey = addr(s.fds[fd])
+  doAssert(pkey.ident != InvalidIdent,
+           "Descriptor $# is not registered in the selector!" % $fd)
+  doAssert(pkey.events * maskEvents == {})
+  if pkey.events != events:
+    var epv = EpollEvent(events: EPOLLRDHUP.uint32)
+    epv.data.fd = fd
+
+    if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
+    if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
+
+    if pkey.events == {}:
+      if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, EpollSocket(socket), addr epv) != 0:
+        raiseIOSelectorsError(osLastError())
+      inc(s.count)
+    else:
+      if events != {}:
+        if epoll_ctl(s.epollFD, EPOLL_CTL_MOD, EpollSocket(socket), addr epv) != 0:
+          raiseIOSelectorsError(osLastError())
+      else:
+        if epoll_ctl(s.epollFD, EPOLL_CTL_DEL, EpollSocket(socket), addr epv) != 0:
+          raiseIOSelectorsError(osLastError())
+        dec(s.count)
+    pkey.events = events
+
+# proc updateHandle*[T](s: Selector[T], socket: int|SocketHandle, events: set[Event]) =
+#   if events != {}:
+#     if socket notin s:
+#       return
+    
+#     let fd = socket.changeFd.EpollSocket
+#     var epv = EpollEvent(events: EPOLLRDHUP.uint32)
+#     if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
+#     if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
+#     if epoll_ctl(s.epollFD, EPOLL_CTL_MOD, fd, addr epv) != 0:
+#       raiseIOSelectorsError(osLastError())
+
+proc unregister*[T](s: Selector[T], socket: int|SocketHandle) =
+  let fd = socket.changeFd
+  s.checkFd(fd)
+  var pkey = addr(s.fds[fd])
+  doAssert(pkey.ident != InvalidIdent,
+           "Descriptor $# is not registered in the selector!" % $fd)
+  if pkey.events != {}:
+    if Event.Read in pkey.events or Event.Write in pkey.events or Event.User in pkey.events:
+      var epv = EpollEvent()
+      # TODO: Refactor all these EPOLL_CTL_DEL + dec(s.count) into a proc.
+      if epoll_ctl(s.epollFD, EPOLL_CTL_DEL, EpollSocket(socket), addr epv) != 0:
+        raiseIOSelectorsError(osLastError())
+      dec(s.count)
+
+  clearKey(pkey)
 
 template checkFd(s, f) =
   # TODO: I don't see how this can ever happen. You won't be able to create an
@@ -181,6 +220,9 @@ proc selectInto*[T](s: Selector[T], timeout: int,
   let count = epoll_wait(s.epollFD, addr(resTable[0]), maxres.cint,
                          timeout.cint)
 
+  once:
+    echo resTable[0]
+    echo count
 
   if count < 0:
     raiseIOSelectorsError(osLastError())
@@ -193,19 +235,26 @@ proc selectInto*[T](s: Selector[T], timeout: int,
       let fd = resTable[idx].data.fd
       let pevents = resTable[idx].events
       let fevents = s.fds[fd].events
-      var rkey = ReadyKey(fd: fd * 4, events: {})
+      var rkey = ReadyKey(fd: fd.restoreFd, events: {})
 
-      if (pevents and EPOLLOUT) != 0:
+      if (pevents and EPOLLOUT.uint32) != 0:
         rkey.events.incl(Event.Write)
 
-      if (pevents and EPOLLIN) != 0:
-        if Event.Read in pevents:
+      if (pevents and EPOLLIN.uint32) != 0:
+        if Event.Read in fevents:
           rkey.events.incl(Event.Read)
 
       results[k] = rkey
       inc idx
       inc k
+    result = count
 
+
+proc getData*[T](s: Selector[T], fd: SocketHandle|int): var T =
+  let fdi = fd.int
+  s.checkFd(fdi)
+  if fdi in s:
+    result = s.fds[fdi shr 2].data
 
 # when isMainModule:
 #   import net
