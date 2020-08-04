@@ -91,26 +91,7 @@ proc restoreFd*(s: SocketHandle|int|cint): int =
 proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
   result = s.fds[fd.changeFd].ident != InvalidIdent
 
-
-# proc registerHandle*[T](s: Selector[T], fd: int | SocketHandle,
-#                         events: set[Event], data: T) =
-#   let fdi = int(fd)
-#   s.checkFd(fdi)
-#   doAssert(s.fds[fdi].ident == InvalidIdent, "Descriptor $# already registered" % $fdi)
-#   s.setKey(fdi, events, 0, data)
-#   if events != {}:
-#     var epv = EpollEvent(events: EPOLLRDHUP)
-#     epv.data.u64 = fdi.uint
-#     if Event.Read in events: epv.events = epv.events or EPOLLIN
-#     if Event.Write in events: epv.events = epv.events or EPOLLOUT
-#     if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, fdi.cint, addr epv) != 0:
-#       raiseIOSelectorsError(osLastError())
-#     inc(s.count)
-
 proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event], data: T) =
-
-  # epoll_ctl*(ephnd: EpollHandle; op: cint; 
-  #            sock: SOCKET; event: ptr epoll_event): cint
   let fd = socket.changeFd.cint
   s.checkFd(fd)
   doAssert(s.fds[fd].ident == InvalidIdent, "Descriptor $# already registered" % $fd)
@@ -154,18 +135,6 @@ proc updateHandle*[T](s: Selector[T], socket: int | SocketHandle, events: set[Ev
         dec(s.count)
     pkey.events = events
 
-# proc updateHandle*[T](s: Selector[T], socket: int|SocketHandle, events: set[Event]) =
-#   if events != {}:
-#     if socket notin s:
-#       return
-    
-#     let fd = socket.changeFd.EpollSocket
-#     var epv = EpollEvent(events: EPOLLRDHUP.uint32)
-#     if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
-#     if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
-#     if epoll_ctl(s.epollFD, EPOLL_CTL_MOD, fd, addr epv) != 0:
-#       raiseIOSelectorsError(osLastError())
-
 proc unregister*[T](s: Selector[T], socket: int|SocketHandle) =
   let fd = socket.changeFd
   s.checkFd(fd)
@@ -197,12 +166,6 @@ template checkFd*(s, f) =
     for i in s.numFD ..< numFD:
       s.fds[i].ident = InvalidIdent
     s.numFD = numFD
-
-
-# proc epoll_wait*(ephnd: EpollHandle,
-#                  events: ptr epoll_event,
-#                  maxevents: cint,
-#                  timeout: cint): cint
 
 const MAX_EPOLL_EVENTS = 64
 
