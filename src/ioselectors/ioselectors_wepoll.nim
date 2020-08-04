@@ -144,7 +144,6 @@ proc unregister*[T](s: Selector[T], socket: int|SocketHandle) =
   if pkey.events != {}:
     if Event.Read in pkey.events or Event.Write in pkey.events or Event.User in pkey.events:
       var epv = EpollEvent()
-      # TODO: Refactor all these EPOLL_CTL_DEL + dec(s.count) into a proc.
       if epoll_ctl(s.epollFD, EPOLL_CTL_DEL, EpollSocket(socket), addr epv) != 0:
         raiseIOSelectorsError(osLastError())
       dec(s.count)
@@ -152,10 +151,6 @@ proc unregister*[T](s: Selector[T], socket: int|SocketHandle) =
   clearKey(pkey)
 
 template checkFd*(s, f) =
-  # TODO: I don't see how this can ever happen. You won't be able to create an
-  # FD if there is too many. -- DP
-  # if f >= s.maxFD:
-  #   raiseIOSelectorsError("Maximum number of descriptors is exhausted!")
   if f >= s.numFD:
     var numFD = s.numFD
     while numFD <= f: numFD *= 2
