@@ -269,7 +269,7 @@ else:
   const
     InvalidIdent = -1
 
-  proc raiseIOSelectorsError[T](message: T) =
+  proc raiseIOSelectorsError*[T](message: T) =
     var msg = ""
     when T is string:
       msg.add(message)

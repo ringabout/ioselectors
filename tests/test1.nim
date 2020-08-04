@@ -1,12 +1,39 @@
-# This is just an example to get you started. You may wish to put all of your
-# tests into a single file, or separate them into multiple `test1`, `test2`
-# etc. files (better names are recommended, just make sure the name starts with
-# the letter 't').
-#
-# To run these tests, simply execute `nimble test`.
+import ioselectors, os
 
-import unittest
 
-import selectorsp
-test "can add":
-  check add(5, 5) == 10
+# when isMainModule:
+import net
+
+let s = newSelector[int]()
+let fd = epoll_create1(0)
+
+if fd == nil:
+  echo "Error: epoll_create1"
+  raiseIOSelectorsError(osLastError())
+
+var sock = newSocket()
+sock.bindAddr(Port(1234))
+sock.listen()
+sock.setSockOpt(OptReusePort, true)
+
+let sockfd = getFd(sock)
+# let sock = socket(wl.AF_INET, 1, 6)
+registerHandle[int](s, sockfd, {Read, Write}, 12)
+
+echo sock.getfd.int
+
+
+while true:
+  var res: array[64, ReadyKey]
+  discard selectInto(s, 120, res)
+  # echo fmt"{res[0].fd = } == {sock.getfd.int = }" 
+  # for data in res:
+  #   if data.data.fd == sock.getfd.int:
+  #     echo "true"
+  #     sock.close()
+
+  echo res[0].repr
+
+close(sock)
+close(s)
+

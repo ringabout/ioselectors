@@ -1,2 +1,2 @@
 # ioselectors
-ioselectors plus for Nim.
+Enhancements for `selectors` module in stdlib and add `wepoll` supports in windows 
