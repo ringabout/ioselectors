@@ -1,3 +1,7 @@
+#            Nim's Runtime Library
+#        (c) Copyright 2016 Eugene Kabanov
+
+
 #            IO selectors
 #        (c) Copyright 2020 Zeshen Xing
 
