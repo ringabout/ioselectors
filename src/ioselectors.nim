@@ -269,7 +269,7 @@ else:
   const
     InvalidIdent = -1
 
-  proc raiseIOSelectorsError*[T](message: T) =
+  proc raiseIOSelectorsError[T](message: T) =
     var msg = ""
     when T is string:
       msg.add(message)
@@ -291,7 +291,7 @@ else:
       skey.ident = pident
       skey.events = pevents
       skey.param = pparam
-      skey.data = data
+      skey.data = pdata
 
   when ioselSupportedPlatform:
     template blockSignals(newmask: var Sigset, oldmask: var Sigset) =
@@ -325,10 +325,10 @@ else:
     include ioselects/ioselectors_epoll
   elif bsdPlatform:
     include ioselects/ioselectors_kqueue
-  elif defined(windows):
-    include ioselectors/ioselectors_wepoll
   elif defined(wselect):
     include ioselects/ioselectors_select
+  elif defined(windows):
+    include ioselectors/ioselectors_wepoll
   elif defined(solaris):
     include ioselects/ioselectors_poll # need to replace it with event ports
   elif defined(genode):
