@@ -71,7 +71,8 @@ proc close*[T](s: Selector[T]) =
     raiseIOSelectorsError(osLastError())
 
 proc newSelectEvent*(): SelectEvent =
-  let event = EpollEvent(events: 0, data: EpollData(u64: 0))
+  discard
+  # result = EpollEvent(events: 0, data: EpollData(u64: 0))
 
 template setKey(s, pident, pevents, pparam, pdata: untyped) =
   var skey = addr(s.fds[pident])
@@ -86,10 +87,10 @@ template clearKey[T](key: ptr SelectorKey[T]) =
   key.events = {}
   key.data = empty
 
-proc changeFd*(s: SocketHandle|int|cint): int =
+proc changeFd*(s: SocketHandle|int|cint): int {.inline.} =
   result = s.int shr 2
 
-proc restoreFd*(s: SocketHandle|int|cint): int =
+proc restoreFd*(s: SocketHandle|int|cint): int {.inline.} =
   result = s.int shl 2
 
 proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
@@ -210,7 +211,7 @@ proc selectInto*[T](s: Selector[T], timeout: int,
     result = count
 
 
-proc getData*[T](s: Selector[T], fd: SocketHandle|int): var T =
+proc getData*[T](s: Selector[T], fd: SocketHandle|int): var T {.inline.} =
   let fdi = fd.int
   s.checkFd(fdi)
   if fdi in s:
