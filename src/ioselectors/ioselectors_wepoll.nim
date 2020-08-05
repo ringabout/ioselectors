@@ -166,6 +166,14 @@ proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event]
       raiseIOSelectorsError(osLastError())
     inc(s.count)
 
+proc registerEvent*[T](s: Selector[T], ev: SelectEvent, data: T) =
+  s.setKey(ev.rsock, {Event.User}, 0, data)
+  var epv = EpollEvent(events: EPOLLIN or EPOLLRDHUP)
+  epv.data.u64 = ev.rsock.uint64
+  if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, ev.rsock, addr epv) != 0:
+    raiseIOSelectorsError(osLastError())
+  inc(s.count)
+
 proc updateHandle*[T](s: Selector[T], socket: int|SocketHandle, events: set[Event]) =
   let maskEvents = {Event.Timer, Event.Signal, Event.Process, Event.Vnode,
                     Event.User, Event.Oneshot, Event.Error}
