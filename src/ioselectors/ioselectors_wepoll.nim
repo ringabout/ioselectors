@@ -97,23 +97,21 @@ proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
   result = s.fds[fd.changeFd].ident != InvalidIdent
 
 proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event], data: T) =
-  let fd = socket.changeFd.cint
+  let fd = socket.changeFd
   s.checkFd(fd)
   doAssert(s.fds[fd].ident == InvalidIdent, "Descriptor $# already registered" % $fd)
   s.setKey(fd, events, 0, data)
   if events != {}:
     var epv = EpollEvent(events: EPOLLRDHUP.uint32)
-    epv.data.fd = fd
+    epv.data.u64 = fd.uint64
     if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
     if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
     if epoll_ctl(s.epollFD, EPOLL_CTL_ADD, EpollSocket(socket), addr epv) != 0:
       raiseIOSelectorsError(osLastError())
     inc(s.count)
 
-proc updateHandle*[T](s: Selector[T], socket: int | SocketHandle, events: set[Event]) =
-  let maskEvents = {Event.Timer, Event.Signal, Event.Process, Event.Vnode,
-                    Event.User, Event.Oneshot, Event.Error}
-  let fd = socket.changeFd.cint
+proc updateHandle*[T](s: Selector[T], socket: int|SocketHandle, events: set[Event]) =
+  let fd = socket.changeFd
   s.checkFd(fd)
   var pkey = addr(s.fds[fd])
   doAssert(pkey.ident != InvalidIdent,
@@ -121,7 +119,7 @@ proc updateHandle*[T](s: Selector[T], socket: int | SocketHandle, events: set[Ev
   doAssert(pkey.events * maskEvents == {})
   if pkey.events != events:
     var epv = EpollEvent(events: EPOLLRDHUP.uint32)
-    epv.data.fd = fd
+    epv.data.u64 = fd.uint64
 
     if Event.Read in events: epv.events = epv.events or EPOLLIN.uint32
     if Event.Write in events: epv.events = epv.events or EPOLLOUT.uint32
@@ -193,7 +191,7 @@ proc selectInto*[T](s: Selector[T], timeout: int,
     var idx = 0
     var k = 0
     while idx < count:
-      let fd = resTable[idx].data.fd.int
+      let fd = resTable[idx].data.u64.int
       let pevents = resTable[idx].events
       let fevents = s.fds[fd].events
       var rkey = ReadyKey(fd: fd.restoreFd, events: {})
