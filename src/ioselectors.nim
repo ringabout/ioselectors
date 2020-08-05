@@ -1,4 +1,5 @@
 when defined(windows):
   include ioselectors/ioselectors_wepoll
 else:
-  include selectors
+  import selectors
+  export selectors
