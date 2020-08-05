@@ -35,8 +35,9 @@ else:
 
 type
   SelectEventImpl = object
-    efd: EpollEvent
-  SelectEvent* = SelectEventImpl
+    rsock: SocketHandle
+    wsock: SocketHandle
+  SelectEvent* = ptr SelectEventImpl
 
 proc newSelector*[T](): Selector[T] =
   # Start with a reasonable size, checkFd() will grow this on demand
@@ -64,15 +65,70 @@ proc newSelector*[T](): Selector[T] =
 proc close*[T](s: Selector[T]) =
   let res = epoll_close(s.epollFD)
   when hasThreadSupport:
-    # deallocSharedArray(s.fds)
+    deallocSharedArray(s.fds)
     deallocShared(cast[pointer](s))
   
   if res != 0:
     raiseIOSelectorsError(osLastError())
 
 proc newSelectEvent*(): SelectEvent =
-  discard
-  # result = EpollEvent(events: 0, data: EpollData(u64: 0))
+  var ssock = createNativeSocket()
+  var wsock = createNativeSocket()
+  var rsock: SocketHandle = INVALID_SOCKET
+  var saddr = Sockaddr_in()
+
+  saddr.sin_family = winlean.AF_INET
+  saddr.sin_port = 0
+  saddr.sin_addr.s_addr = INADDR_ANY
+  if bindAddr(ssock, cast[ptr SockAddr](addr(saddr)),
+              sizeof(saddr).SockLen) < 0'i32:
+    raiseIOSelectorsError(osLastError())
+
+  if winlean.listen(ssock, 1) != 0:
+    raiseIOSelectorsError(osLastError())
+
+  var namelen = sizeof(saddr).SockLen
+  if getsockname(ssock, cast[ptr SockAddr](addr(saddr)),
+                  addr(namelen)) != 0'i32:
+    raiseIOSelectorsError(osLastError())
+
+  saddr.sin_addr.s_addr = 0x0100007F
+  if winlean.connect(wsock, cast[ptr SockAddr](addr(saddr)),
+                      sizeof(saddr).SockLen) != 0:
+    raiseIOSelectorsError(osLastError())
+  namelen = sizeof(saddr).SockLen
+  rsock = winlean.accept(ssock, cast[ptr SockAddr](addr(saddr)),
+                          cast[ptr SockLen](addr(namelen)))
+  if rsock == SocketHandle(-1):
+    raiseIOSelectorsError(osLastError())
+
+  if winlean.closesocket(ssock) != 0:
+    raiseIOSelectorsError(osLastError())
+
+  var mode = clong(1)
+  if ioctlsocket(rsock, FIONBIO, addr(mode)) != 0:
+    raiseIOSelectorsError(osLastError())
+  mode = clong(1)
+  if ioctlsocket(wsock, FIONBIO, addr(mode)) != 0:
+    raiseIOSelectorsError(osLastError())
+
+  result = cast[SelectEvent](allocShared0(sizeof(SelectEventImpl)))
+  result.rsock = rsock
+  result.wsock = wsock
+
+proc trigger*(ev: SelectEvent) =
+  var data: uint64 = 1
+  if winlean.send(ev.wsock, cast[pointer](addr data),
+                  cint(sizeof(uint64)), 0) != sizeof(uint64):
+    raiseIOSelectorsError(osLastError())
+
+proc close*(ev: SelectEvent) =
+  let res1 = winlean.closesocket(ev.rsock)
+  let res2 = winlean.closesocket(ev.wsock)
+  deallocShared(cast[pointer](ev))
+  if res1 != 0 or res2 != 0:
+    raiseIOSelectorsError(osLastError())
+
 
 template setKey(s, pident, pevents, pparam, pdata: untyped) =
   var skey = addr(s.fds[pident])
