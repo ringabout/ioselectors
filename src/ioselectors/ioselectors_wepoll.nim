@@ -87,10 +87,10 @@ template clearKey[T](key: ptr SelectorKey[T]) =
   key.events = {}
   key.data = empty
 
-proc changeFd*(s: SocketHandle|int|cint): int {.inline.} =
+proc changeFd*(s: SocketHandle|int): int {.inline.} =
   result = s.int shr 2
 
-proc restoreFd*(s: SocketHandle|int|cint): int {.inline.} =
+proc restoreFd*(s: SocketHandle|int): int {.inline.} =
   result = s.int shl 2
 
 proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
@@ -193,7 +193,7 @@ proc selectInto*[T](s: Selector[T], timeout: int,
     var idx = 0
     var k = 0
     while idx < count:
-      let fd = resTable[idx].data.fd
+      let fd = resTable[idx].data.fd.int
       let pevents = resTable[idx].events
       let fevents = s.fds[fd].events
       var rkey = ReadyKey(fd: fd.restoreFd, events: {})
