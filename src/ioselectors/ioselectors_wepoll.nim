@@ -111,6 +111,9 @@ proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event]
     inc(s.count)
 
 proc updateHandle*[T](s: Selector[T], socket: int|SocketHandle, events: set[Event]) =
+  let maskEvents = {Event.Timer, Event.Signal, Event.Process, Event.Vnode,
+                    Event.User, Event.Oneshot, Event.Error}
+
   let fd = socket.changeFd
   s.checkFd(fd)
   var pkey = addr(s.fds[fd])
