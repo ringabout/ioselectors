@@ -1,4 +1,4 @@
-import std/monotimes, heapqueue
+import std/monotimes, heapqueue, options
 
 
 # {.pragma: libKernel32, stdcall, dynlib: "Kernel32.dll".}
@@ -21,3 +21,12 @@ type
 
   Timer* = object
     data: HeapQueue[TimerCallBack]
+
+
+proc processTimer*(timer: Timer): Option[int] {.inline.} =
+  let
+    count = timer.data.len
+    now = getMonoTime()
+
+  if count > 0 and timer.data[0].finishAt <= now:
+    discard

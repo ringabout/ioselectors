@@ -10,7 +10,7 @@ import wepoll, os, winlean
 import nativesockets
 
 import strutils
-include base
+import base
 
 export wepoll
 
