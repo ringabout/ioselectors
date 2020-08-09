@@ -1,4 +1,4 @@
-import ioselectors, os
+import ../src/ioselectors, os
 
 
 # when isMainModule:
@@ -9,7 +9,7 @@ let fd = epoll_create1(0)
 
 if fd == nil:
   echo "Error: epoll_create1"
-  raiseIOSelectorsError(osLastError())
+  raiseOSError(osLastError())
 
 var sock = newSocket()
 sock.bindAddr(Port(1234))

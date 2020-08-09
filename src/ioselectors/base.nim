@@ -42,10 +42,10 @@ type
     errorCode*: OSErrorCode
 
   SelectorKey*[T] = object
-    ident: int
-    events: set[Event]
-    param: int
-    data: T
+    ident*: int
+    events*: set[Event]
+    param*: int
+    data*: T
 
 const
   InvalidIdent* = -1
