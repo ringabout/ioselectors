@@ -64,12 +64,6 @@ proc raiseIOSelectorsError*[T](message: T) =
 proc setNonBlocking*(fd: cint) {.inline.} =
   setBlocking(fd.SocketHandle, false)
 
-template clearKey*[T](key: ptr SelectorKey[T]) =
-  var empty: T
-  key.ident = InvalidIdent
-  key.events = {}
-  key.data = empty
-
 proc verifySelectParams*(timeout: int) =
   # Timeout of -1 means: wait forever
   # Anything higher is the time to wait in milliseconds.
