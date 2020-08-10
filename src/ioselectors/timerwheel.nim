@@ -4,7 +4,8 @@ import math
 
 const
   widthBits {.strdefine.} = 8
-  numLevels = (64 + widthBits - 1) div widthBits
+  # numLevels = (32 + widthBits - 1) div widthBits
+  numLevels = 32 div widthBits
   numSlots = 1 shl widthBits
   mask = numSlots - 1
 
@@ -19,35 +20,41 @@ type
     finishAt*: Tick
     cb*: Callback
 
-  TimerEventList* =  DoublyLinkedRing[TimerEvent]
+  TimerEventList* = DoublyLinkedRing[TimerEvent]
 
   Timer* = object
-    interval*: Tick
+    interval*: array[numLevels, Tick]
     ticksPending*: Tick
     now*: array[numLevels, Tick]
     slots*: array[numLevels, array[numSlots, TimerEventList]]
-    head, tail: int
 
   Scheduler* = object
     timer: Timer
 
 proc initScheduler*(): Scheduler =
-  discard
+  for level in 0 ..< numLevels:
+    result.timer.interval[level] = numSlots ^ (level + 1)
 
 proc initTimerEvent*(finishAt: Tick, cb: Callback): TimerEvent =
   TimerEvent(finishAt: finishAt, cb: cb)
 
-proc setTimer*(s: var Scheduler, event: TimerEvent, levels = 0) =
+proc setTimer*(s: var Scheduler, event: TimerEvent, level = 0) =
   # mod (2 ^ n - 1)
-  let scheduleAt = (s.timer.now[levels] + event.finishAt) and mask
-  s.timer.slots[levels][scheduleAt].append event
 
-proc processTimer*(s: var Scheduler, step: Tick, levels = 0) =
-  var scheduleAt = s.timer.now[levels]
+  # decide which level
+
+
+  let scheduleAt = (s.timer.now[level] + event.finishAt) and mask
+  s.timer.slots[level][scheduleAt].append event
+
+proc processTimer*(s: var Scheduler, step: Tick, level = 0) =
+  var scheduleAt = s.timer.now[level]
   for i in 0 ..< step:
-    for event in s.timer.slots[levels][scheduleAt and mask]:
+    for event in s.timer.slots[level][scheduleAt and mask]:
       event.cb()
 
     inc scheduleAt
 
-  s.timer.now[levels] = scheduleAt
+  s.timer.now[level] = scheduleAt
+
+echo initScheduler()
