@@ -17,7 +17,7 @@ type
   Callback* = proc() {.gcsafe.}
 
   TimerEvent* = object
-    finishAt*: Tick
+    finishAt: Tick
     cb*: Callback
 
   TimerEventList* = DoublyLinkedRing[TimerEvent]
@@ -33,18 +33,29 @@ type
 
 proc initScheduler*(): Scheduler =
   for level in 0 ..< numLevels:
-    result.timer.interval[level] = numSlots ^ (level + 1)
+    result.timer.interval[level] = numSlots ^  (level + 1)
 
-proc initTimerEvent*(finishAt: Tick, cb: Callback): TimerEvent =
-  TimerEvent(finishAt: finishAt, cb: cb)
+proc initTimerEvent*(cb: Callback): TimerEvent =
+  TimerEvent(cb: cb)
 
-proc setTimer*(s: var Scheduler, event: TimerEvent, level = 0) =
+proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   # mod (2 ^ n - 1)
-
+  var level = 0
   # decide which level
+  while timeout > s.timer.interval[level]:
+    inc level
 
+  if level > numLevels:
+    return
 
-  let scheduleAt = (s.timer.now[level] + event.finishAt) and mask
+  event.finishAt = s.timer.now[level] + timeout
+
+  let scheduleAt = 
+    if level == 0:
+      event.finishAt and mask
+    else:
+      (s.timer.now[level] + timeout div s.timer.interval[level - 1] - 1) and mask
+
   s.timer.slots[level][scheduleAt].append event
 
 proc processTimer*(s: var Scheduler, step: Tick, level = 0) =
@@ -57,4 +68,8 @@ proc processTimer*(s: var Scheduler, step: Tick, level = 0) =
 
   s.timer.now[level] = scheduleAt
 
-echo initScheduler()
+var s = initScheduler()
+var event = initTimerEvent(proc() = echo "Hello")
+
+s.setTimer(event, 265)
+echo s.timer.slots[1]
