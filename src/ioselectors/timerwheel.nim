@@ -1,4 +1,4 @@
-import lists, std/monotimes
+import std/monotimes
 
 
 type
@@ -9,7 +9,8 @@ type
     callback*: CallBack
 
   Timer* = object
-    callback: seq[TimerCallBack]
+    startTime*: MonoTime
+    callback*: seq[seq[TimerCallBack]]
     head, tail: int
 
   Scheduler* = object
