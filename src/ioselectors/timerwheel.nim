@@ -37,13 +37,15 @@ proc initTimerEvent*(finishAt: Tick, cb: Callback): TimerEvent =
   TimerEvent(finishAt: finishAt, cb: cb)
 
 proc setTimer*(s: var Scheduler, event: TimerEvent, levels = 0) =
-  let scheduleAt = s.timer.now[levels] + event.finishAt
+  let scheduleAt = (s.timer.now[levels] + event.finishAt) and mask
   s.timer.slots[0][scheduleAt].append event
 
 proc processTimer*(s: var Scheduler, step: Tick, levels = 0) =
   var scheduleAt = s.timer.now[levels]
   for i in 0 ..< step:
-    for event in s.timer.slots[levels][scheduleAt]:
+    for event in s.timer.slots[levels][scheduleAt and mask]:
       event.cb()
 
     inc scheduleAt
+
+  s.timer.now[levels] = scheduleAt
