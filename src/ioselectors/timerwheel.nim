@@ -1,4 +1,5 @@
 import std/monotimes
+import lists
 
 
 type
@@ -8,9 +9,13 @@ type
     finishAt*: MonoTime
     callback*: CallBack
 
+  TimerCallBackList* = SinglyLinkedList[TimerCallBack]
+
   Timer* = object
-    startTime*: MonoTime
-    callback*: seq[seq[TimerCallBack]]
+    startTime*: Natural
+    interval*: Natural
+    first*: array[60, TimerCallBackList]
+    others*: array[5, array[60, TimerCallBackList]]
     head, tail: int
 
   Scheduler* = object
