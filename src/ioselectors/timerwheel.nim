@@ -1,6 +1,8 @@
 import lists
 import math
 
+import sugar
+
 
 const
   widthBits {.strdefine.} = 4
@@ -59,21 +61,23 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
     else:
       (s.timer.now[level] + timeout div s.timer.duration[level - 1] - 1) and mask
 
+
   s.timer.slots[level][scheduleAt].append event
   inc s.taskCounter
 
 proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
   let idx = s.timer.now[hlevel] - 1
   for event in s.timer.slots[hlevel][idx].mitems:
+    if event.finishAt <= s.timer.currentTime:
+      event.cb()
     s.setTimer(event, event.finishAt - s.timer.currentTime)
   s.timer.slots[hlevel][idx].head = nil
 
 proc processTimer*(s: var Scheduler, step: Tick) =
-  var level = 0
-  while step > s.timer.duration[level]:
-    inc level
+  let level = 0
 
   var scheduleAt = s.timer.now[level]
+  inc(s.timer.currentTime, step)
 
   if s.taskCounter > 0:
     for i in 0 ..< step:
@@ -95,19 +99,26 @@ proc processTimer*(s: var Scheduler, step: Tick) =
           degradeTimer(s, hlevel)
           inc s.timer.now[hlevel]
 
-
   s.timer.now[level] = scheduleAt
-  inc(s.timer.currentTime, step)
 
 
 when isMainModule:
   var s = initScheduler()
-  var event = initTimerEvent(proc() = echo "Hello")
+  var event = initTimerEvent(proc() = echo "first")
+  var event2 = initTimerEvent(proc() = echo "second")
 
   echo s.timer.duration
   echo s.timer.now
   s.setTimer(event, 0)
   s.setTimer(event, 3)
-  s.setTimer(event, 5)
-  s.processTimer(6)
-  echo s.timer.slots[0]
+  s.setTimer(event, 7)
+  s.setTimer(event2, 18)
+  s.setTimer(event2, 19)
+  s.setTimer(event2, 28)
+  s.setTimer(event2, 29)
+  s.setTimer(event2, 37)
+  s.setTimer(event2, 62)
+  echo s.timer.slots
+  s.processTimer(17)
+  s.processTimer(4)
+  echo s.timer.slots
