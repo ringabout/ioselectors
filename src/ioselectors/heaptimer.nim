@@ -13,14 +13,14 @@ import std/monotimes, heapqueue, options
 
 
 type
-  CallBack* = proc () {.gcsafe.}
+  Callback* = proc () {.gcsafe.}
 
-  TimerCallBack* = object
+  TimerCallback* = object
     finishAt*: MonoTime
-    callback*: CallBack
+    callback*: Callback
 
   Timer* = object
-    data: HeapQueue[TimerCallBack]
+    data: HeapQueue[TimerCallback]
 
 
 proc processTimer*(timer: Timer): Option[int] {.inline.} =

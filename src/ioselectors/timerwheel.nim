@@ -1,5 +1,6 @@
 import lists
 import math
+import bitops
 
 
 const
@@ -26,9 +27,11 @@ type
     duration*: array[numLevels, Tick]
     ticksPending*: Tick
     now*: array[numLevels, Tick]
+    bits*: uint32
     slots*: array[numLevels, array[numSlots, TimerEventList]]
 
   Scheduler* = object
+    taskCounter: Natural
     timer: Timer
 
 proc initScheduler*(): Scheduler =
@@ -57,6 +60,7 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
       (s.timer.now[level] + timeout div s.timer.duration[level - 1] - 1) and mask
 
   s.timer.slots[level][scheduleAt].append event
+  inc s.taskCounter
 
 proc processTimer*(s: var Scheduler, step: Tick) =
   var level = 0
@@ -64,25 +68,37 @@ proc processTimer*(s: var Scheduler, step: Tick) =
     inc level
 
   var scheduleAt = s.timer.now[level]
-  for i in 0 ..< step:
-    let index = scheduleAt and mask
-    for event in s.timer.slots[level][index]:
-      event.cb()
 
-    s.timer.slots[level][index].head = nil
+  if s.taskCounter > 0:
+    for i in 0 ..< step:
+      let index = scheduleAt and mask
+      for event in s.timer.slots[level][index]:
+        event.cb()
+        dec s.taskCounter
 
-    inc scheduleAt
+      s.timer.slots[level][index].head = nil
+
+      scheduleAt = (scheduleAt + 1) and mask
+
+      var hlevel = level + 1
+      if scheduleAt == 0 and hlevel < numLevels - 1:
+        inc s.timer.now[hlevel]
+        while s.timer.now[hlevel] == 0 and hlevel < numLevels - 1:
+          inc hlevel
+          inc s.timer.now[hlevel]
+
 
   s.timer.now[level] = scheduleAt
 
-var s = initScheduler()
-var event = initTimerEvent(proc() = echo "Hello")
 
-echo s.timer.duration
-echo s.timer.now
-s.setTimer(event, 0)
-s.setTimer(event, 3)
-s.setTimer(event, 5)
-s.processTimer(6)
-echo s.timer.slots[0]
+when isMainModule:
+  var s = initScheduler()
+  var event = initTimerEvent(proc() = echo "Hello")
 
+  echo s.timer.duration
+  echo s.timer.now
+  s.setTimer(event, 0)
+  s.setTimer(event, 3)
+  s.setTimer(event, 5)
+  s.processTimer(6)
+  echo s.timer.slots[0]
