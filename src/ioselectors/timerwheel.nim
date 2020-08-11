@@ -18,7 +18,7 @@ type
 
   Callback* = proc() {.gcsafe.}
 
-  TimerEvent* = object
+  TimerEvent* = ref object
     finishAt: Tick
     cb*: Callback
 
@@ -26,7 +26,6 @@ type
 
   Timer* = object
     duration*: array[numLevels, Tick]
-    ticksPending*: Tick
     currentTime*: Tick
     now*: array[numLevels, Tick]
     bits*: uint32
@@ -38,10 +37,20 @@ type
 
 proc initScheduler*(): Scheduler =
   for level in 0 ..< numLevels:
-    result.timer.duration[level] = numSlots ^  (level + 1)
+    result.timer.duration[level] = numSlots ^ (level + 1)
 
 proc initTimerEvent*(cb: Callback): TimerEvent =
   TimerEvent(cb: cb)
+
+proc `$`*(t: TimerEvent): string =
+  $(t.finishAt, )
+
+proc cancel*(t: var TimerEvent) =
+  t.cb = nil
+
+proc execute*(t: TimerEvent) =
+  if t.cb != nil:
+    t.cb()
 
 proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   # mod (2 ^ n - 1)
@@ -61,7 +70,6 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
     else:
       (s.timer.now[level] + timeout div s.timer.duration[level - 1] - 1) and mask
 
-
   s.timer.slots[level][scheduleAt].append event
   inc s.taskCounter
 
@@ -69,8 +77,10 @@ proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
   let idx = s.timer.now[hlevel] - 1
   for event in s.timer.slots[hlevel][idx].mitems:
     if event.finishAt <= s.timer.currentTime:
-      event.cb()
-    s.setTimer(event, event.finishAt - s.timer.currentTime)
+      event.execute()
+    else:
+      s.setTimer(event, event.finishAt - s.timer.currentTime)
+    dec s.taskCounter
   s.timer.slots[hlevel][idx].head = nil
 
 proc processTimer*(s: var Scheduler, step: Tick) =
@@ -83,7 +93,7 @@ proc processTimer*(s: var Scheduler, step: Tick) =
     for i in 0 ..< step:
       let index = scheduleAt and mask
       for event in s.timer.slots[level][index]:
-        event.cb()
+        event.execute()
         dec s.taskCounter
 
       s.timer.slots[level][index].head = nil
@@ -103,22 +113,45 @@ proc processTimer*(s: var Scheduler, step: Tick) =
 
 
 when isMainModule:
+  import sugar
+
   var s = initScheduler()
-  var event = initTimerEvent(proc() = echo "first")
+  var count = 0
+  var event0 = initTimerEvent(proc() = 
+    inc count)
+
+
+  var event1 = initTimerEvent(proc() = echo "first")
   var event2 = initTimerEvent(proc() = echo "second")
 
-  echo s.timer.duration
-  echo s.timer.now
-  s.setTimer(event, 0)
-  s.setTimer(event, 3)
-  s.setTimer(event, 7)
-  s.setTimer(event2, 18)
-  s.setTimer(event2, 19)
-  s.setTimer(event2, 28)
-  s.setTimer(event2, 29)
-  s.setTimer(event2, 37)
-  s.setTimer(event2, 62)
+
+  s.setTimer(event0, 5)
   echo s.timer.slots
-  s.processTimer(17)
   s.processTimer(4)
-  echo s.timer.slots
+  dump count
+  s.processTimer(2)
+  dump count
+
+  dump s.timer.slots
+  s.setTimer(event0, 5)
+  dump s.timer.slots
+  event0.cancel()
+  s.processTimer(6)
+  dump count
+
+
+  # s.setTimer(event1, 3)
+  # s.setTimer(event1, 7)
+  # s.setTimer(event2, 18)
+  # s.setTimer(event2, 19)
+  # s.setTimer(event2, 28)
+  # s.setTimer(event2, 29)
+  # s.setTimer(event2, 37)
+  # s.setTimer(event2, 62)
+  # dump s.taskCounter
+  # s.processTimer(17)
+  # dump s.taskCounter
+  # s.processTimer(4)
+  # dump s.taskCounter
+  # s.processTimer(7)
+  # dump s.taskCounter
