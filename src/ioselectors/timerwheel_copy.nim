@@ -1,5 +1,6 @@
 import lists
 import math
+import bitops
 
 
 const
@@ -25,9 +26,7 @@ type
   Timer* = object
     duration*: array[numLevels, Tick]
     ticksPending*: Tick
-    currentTime*: Tick
     now*: array[numLevels, Tick]
-    bits*: uint32
     slots*: array[numLevels, array[numSlots, TimerEventList]]
 
   Scheduler* = object
@@ -62,12 +61,6 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   s.timer.slots[level][scheduleAt].append event
   inc s.taskCounter
 
-proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
-  let idx = s.timer.now[hlevel] - 1
-  for event in s.timer.slots[hlevel][idx].mitems:
-    s.setTimer(event, event.finishAt - s.timer.currentTime)
-  s.timer.slots[hlevel][idx].head = nil
-
 proc processTimer*(s: var Scheduler, step: Tick) =
   var level = 0
   while step > s.timer.duration[level]:
@@ -89,15 +82,12 @@ proc processTimer*(s: var Scheduler, step: Tick) =
       var hlevel = level + 1
       if scheduleAt == 0 and hlevel < numLevels - 1:
         inc s.timer.now[hlevel]
-        degradeTimer(s, hlevel)
         while s.timer.now[hlevel] == 0 and hlevel < numLevels - 1:
           inc hlevel
-          degradeTimer(s, hlevel)
           inc s.timer.now[hlevel]
 
 
   s.timer.now[level] = scheduleAt
-  inc(s.timer.currentTime, step)
 
 
 when isMainModule:
