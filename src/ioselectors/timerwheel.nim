@@ -91,7 +91,7 @@ proc processTimer*(s: var Scheduler, step: Tick) =
   let level = 0
 
   var scheduleAt = s.timer.now[level]
-  inc(s.timer.currentTime, step)
+  inc(s.timer.currentTime, step + 1)
 
   # if s.taskCounter > 0:
   for i in 0 .. step:
@@ -203,8 +203,10 @@ when isMainModule:
     s.setTimer(event0, 5)
     s.setTimer(event0, 10)
     dump s.timer.slots
-    s.processTimer(5)
+    s.processTimer(4)
     doAssert count == 3
+    s.processTimer(1)
+    doAssert count == 4
 
     # timers.schedule(&timer, 5);
     # timers.schedule(&timer, 10);
