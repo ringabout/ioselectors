@@ -233,5 +233,40 @@ when isMainModule:
       doAssert count == 3 + i
       s.processTimer(2)
       doAssert count == 4 + i
-      dump count
 
+
+  block:
+    var event1 = initTimerEvent(proc() =
+      discard)
+
+    var event2 = initTimerEvent(proc() =
+      discard)
+
+    discard event1
+    discard event2
+
+  
+  block:
+    var count0 = 0
+    var count1 = 0
+
+    var event0 = initTimerEvent(() => inc count0)
+    var event1a = initTimerEvent(proc() = inc count1)
+    var event1b = initTimerEvent(proc() = inc count1)
+
+    var s = initScheduler()
+    s.setTimer(event1a, 16)
+    s.setTimer(event1b, 16)
+    s.processTimer(1)
+    s.setTimer(event0, 15)
+    s.processTimer(14)
+    doAssert count0 == 0
+    doAssert count1 == 0
+    doAssert s.timer.currentTime == 15
+
+    s.processTimer(2)
+
+    doAssert count0 == 1
+    doAssert count1 == 2
+
+    doAssert s.timer.currentTime == 17
