@@ -58,19 +58,19 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   # mod (2 ^ n - 1)
   var level = 0
   # decide which level
-  while timeout > s.timer.duration[level]:
+  while timeout >= s.timer.duration[level]:
     inc level
 
   if level > numLevels:
     return
 
-  event.finishAt = s.timer.now[level] + timeout
+  event.finishAt = s.timer.currentTime + timeout
 
   let scheduleAt = 
     if level == 0:
       event.finishAt and mask
     else:
-      (s.timer.now[level] + timeout div s.timer.duration[level - 1] - 1) and mask
+      (s.timer.now[level] + (timeout div s.timer.duration[level - 1]) - 1) and mask
 
   s.timer.slots[level][scheduleAt].append event
   inc s.taskCounter
@@ -91,27 +91,32 @@ proc processTimer*(s: var Scheduler, step: Tick) =
   let level = 0
 
   var scheduleAt = s.timer.now[level]
-  inc(s.timer.currentTime, step + 1)
 
   # if s.taskCounter > 0:
-  for i in 0 .. step:
-    let index = scheduleAt and mask
-    for event in s.timer.slots[level][index]:
+  for i in 0 ..< step:
+    for event in s.timer.slots[level][scheduleAt]:
       event.execute()
       dec s.taskCounter
 
-    s.timer.slots[level][index].head = nil
+    s.timer.slots[level][scheduleAt].head = nil
 
     scheduleAt = (scheduleAt + 1) and mask
 
     var hlevel = level + 1
+
     if scheduleAt == 0 and hlevel < numLevels - 1:
       s.timer.now[hlevel] = (s.timer.now[hlevel] + 1) and mask
       degradeTimer(s, hlevel)
+
       while s.timer.now[hlevel] == 0 and hlevel < numLevels - 1:
         inc hlevel
         s.timer.now[hlevel] = (s.timer.now[hlevel] + 1) and mask
         degradeTimer(s, hlevel)
+
+    inc s.timer.currentTime
+
+
+
 
   s.timer.now[level] = scheduleAt
 
@@ -119,47 +124,44 @@ proc processTimer*(s: var Scheduler, step: Tick) =
 when isMainModule:
   import sugar
 
-  # block:
-  #   var s = initScheduler()
-  #   var count = 0
-  #   var event0 = initTimerEvent(proc() = 
-  #     inc count)
+  block:
+    var s = initScheduler()
+    var count = 0
+    var event0 = initTimerEvent(proc() = 
+      inc count)
 
 
-  #   var event1 = initTimerEvent(proc() = echo "first")
-  #   var event2 = initTimerEvent(proc() = echo "second")
+    var event1 = initTimerEvent(proc() = discard "first")
+    var event2 = initTimerEvent(proc() = discard "second")
 
 
-  #   s.setTimer(event0, 5)
-  #   echo s.timer.slots
-  #   s.processTimer(4)
-  #   dump count
-  #   s.processTimer(2)
-  #   dump count
-
-  #   dump s.timer.slots
-  #   s.setTimer(event0, 5)
-  #   dump s.timer.slots
-  #   event0.cancel()
-  #   s.processTimer(6)
-  #   dump count
+    s.setTimer(event0, 5)
+    s.processTimer(4)
+    doAssert count == 0
+    s.processTimer(2)
+    doAssert count == 1
 
 
-  # s.setTimer(event1, 3)
-  # s.setTimer(event1, 7)
-  # s.setTimer(event2, 18)
-  # s.setTimer(event2, 19)
-  # s.setTimer(event2, 28)
-  # s.setTimer(event2, 29)
-  # s.setTimer(event2, 37)
-  # s.setTimer(event2, 62)
-  # dump s.taskCounter
-  # s.processTimer(17)
-  # dump s.taskCounter
-  # s.processTimer(4)
-  # dump s.taskCounter
-  # s.processTimer(7)
-  # dump s.taskCounter
+    # s.setTimer(event0, 5)
+    # event0.cancel()
+    # s.processTimer(6)
+
+
+    s.setTimer(event1, 3)
+    s.setTimer(event1, 7)
+    s.setTimer(event2, 18)
+    s.setTimer(event2, 19)
+    s.setTimer(event2, 28)
+    s.setTimer(event2, 29)
+    s.setTimer(event2, 37)
+    s.setTimer(event2, 62)
+    doAssert s.taskCounter == 8
+    s.processTimer(17)
+    doAssert s.taskCounter == 6
+    s.processTimer(4)
+    doAssert s.taskCounter == 4
+    s.processTimer(8)
+    doAssert s.taskCounter == 3
 
   block:
     var s = initScheduler()
@@ -174,59 +176,64 @@ when isMainModule:
 
     s.setTimer(event0, 5)
     doAssert s.isActive
-    s.processTimer(5)
+    s.processTimer(6)
     doAssert count == 1
 
     s.processTimer(256)
     doAssert count == 1
 
     s.setTimer(event0, 5)
-    s.processTimer(5)
+    s.processTimer(6)
     doAssert count == 2
-
-    # # Canceled timers don't run.
-    # s.setTimer(event0, 5)
-    # event0.cancel()
-    # s.processTimer(10)
-    # doAssert count == 2
 
     s.processTimer(250)
     s.setTimer(event0, 5)
     s.processTimer(10)
     doAssert count == 3
 
-    # // Timers that are scheduled multiple times only run at the last
-    # // scheduled tick.
-    dump s.timer.now
-    dump s.timer.duration
-    dump s.timer.currentTime
     s.setTimer(event0, 5)
     s.setTimer(event0, 10)
-    dump s.timer.slots
+
     s.processTimer(4)
     doAssert count == 3
-    s.processTimer(1)
+    s.processTimer(2)
     doAssert count == 4
 
-    # timers.schedule(&timer, 5);
-    # timers.schedule(&timer, 10);
-    # timers.advance(5);
-    # EXPECT_INTEQ(count, 3);
-    # timers.advance(5);
-    # EXPECT_INTEQ(count, 4);
 
-    # // Timer can safely be canceled multiple times.
-    # timers.schedule(&timer, 5);
-    # timer.cancel();
-    # timer.cancel();
-    # EXPECT(!timer.active());
-    # timers.advance(10);
-    # EXPECT_INTEQ(count, 4);
+  block:
+    var s = initScheduler()
+    var count = 0
+    var event0 = initTimerEvent(proc() = 
+      inc count)
 
-    # {
-    #     TimerEvent<Callback> timer2([&count] () { ++count; });
-    #     timers.schedule(&timer2, 5);
-    # }
-    # timers.advance(10);
-    # EXPECT_INTEQ(count, 4);
+    doAssert count == 0
+
+    s.setTimer(event0, 16)
+    s.processTimer(15)
+    doAssert count == 0
+    s.processTimer(2)
+    doAssert count == 1
+
+    s.setTimer(event0, 17)
+    s.processTimer(16)
+    doAssert count == 1
+    s.processTimer(2)
+    doAssert count == 2
+
+    s.setTimer(event0, 16 * 4 - 1)
+    s.processTimer(16 * 4 - 2)
+    doAssert count == 2
+    s.processTimer(2)
+    doAssert count == 3
+
+
+
+#     // Schedule multiple rotations ahead in time, to non-0 slot. (Do this
+#     // twice, once starting from slot 0, once starting from slot 5);
+#     for (int i = 0; i < 2; ++i) {
+#         timers.schedule(&timer, 256*4 + 5);
+#         timers.advance(256*4 + 4);
+#         EXPECT_INTEQ(count, 3 + i);
+#         timers.advance(1);
+#         EXPECT_INTEQ(count, 4 + i);
 
