@@ -1,13 +1,13 @@
 import lists
 import math
 
-import sugar
-
 
 const
   widthBits {.strdefine.} = 4
+  total {.strdefine.} = 16
+  totalBits = 2 ^ 16
   # numLevels = (32 + widthBits - 1) div widthBits
-  numLevels = 16 div widthBits
+  numLevels = total div widthBits
   numSlots = 1 shl widthBits
   mask = numSlots - 1
 
@@ -61,8 +61,8 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   while timeout >= s.timer.duration[level]:
     inc level
 
-  if level > numLevels:
-    return
+    if level >= numLevels:
+      doAssert false, "Number is too large "
 
   event.finishAt = s.timer.currentTime + timeout
 
@@ -113,9 +113,7 @@ proc processTimer*(s: var Scheduler, step: Tick) =
         s.timer.now[hlevel] = (s.timer.now[hlevel] + 1) and mask
         degradeTimer(s, hlevel)
 
-    inc s.timer.currentTime
-
-
+    s.timer.currentTime = (s.timer.currentTime + 1) and (totalBits - 1)
 
 
   s.timer.now[level] = scheduleAt
@@ -245,7 +243,7 @@ when isMainModule:
     discard event1
     discard event2
 
-  
+
   block:
     var count0 = 0
     var count1 = 0
@@ -270,3 +268,22 @@ when isMainModule:
     doAssert count1 == 2
 
     doAssert s.timer.currentTime == 17
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initScheduler()
+
+    s.setTimer(event0, 786)
+    s.setTimer(event0, 8888)
+    s.setTimer(event0, 8888)
+    s.setTimer(event0, 7777)
+    s.setTimer(event0, 63300)
+    s.processTimer(456)
+    s.processTimer(400)
+    doAssert count0 == 1
+    s.processTimer(9000)
+    doAssert count0 == 4
+    s.processTimer(60000)
+    doAssert count0 == 5
