@@ -3,9 +3,9 @@ import math
 
 
 const
-  widthBits {.strdefine.} = 4
-  total {.strdefine.} = 16
-  totalBits = 2 ^ 16
+  widthBits {.intdefine.} = 4
+  total {.intdefine.} = 16
+  totalBits = 2 ^ total
   # numLevels = (32 + widthBits - 1) div widthBits
   numLevels = total div widthBits
   numSlots = 1 shl widthBits
