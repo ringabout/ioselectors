@@ -5,13 +5,14 @@ import math
 const
   widthBits {.intdefine.} = 4
   total {.intdefine.} = 16
-  totalBits = 2 ^ total
+  totalBits = 1 shl total
   # numLevels = (32 + widthBits - 1) div widthBits
   numLevels = total div widthBits
   numSlots = 1 shl widthBits
   mask = numSlots - 1
 
 assert isPowerOfTwo(widthBits)
+assert isPowerOfTwo(total)
 
 type
   Tick* = Natural
@@ -88,32 +89,22 @@ proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
     s.timer.slots[hlevel][idx].head = nil
 
 proc processTimer*(s: var Scheduler, step: Tick) =
-  let level = 0
-
-  var scheduleAt = s.timer.now[level]
-
   # if s.taskCounter > 0:
   for i in 0 ..< step:
-    for event in s.timer.slots[level][scheduleAt]:
+    let idx = s.timer.now[0]
+    for event in s.timer.slots[0][idx]:
       event.execute()
       dec s.taskCounter
 
-    s.timer.slots[level][scheduleAt].head = nil
+    s.timer.slots[0][idx].head = nil
 
-    scheduleAt = (scheduleAt + 1) and mask
+    s.timer.now[0] = (idx + 1) and mask
 
-    var hlevel = level + 1
+    var hlevel = 0
 
-    if scheduleAt == 0 and hlevel < numLevels - 1:
+    while s.timer.now[hlevel] == 0 and hlevel < numLevels - 1:
+      inc hlevel
       s.timer.now[hlevel] = (s.timer.now[hlevel] + 1) and mask
       degradeTimer(s, hlevel)
 
-      while s.timer.now[hlevel] == 0 and hlevel < numLevels - 1:
-        inc hlevel
-        s.timer.now[hlevel] = (s.timer.now[hlevel] + 1) and mask
-        degradeTimer(s, hlevel)
-
     s.timer.currentTime = (s.timer.currentTime + 1) and (totalBits - 1)
-
-
-  s.timer.now[level] = scheduleAt
