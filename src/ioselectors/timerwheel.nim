@@ -23,7 +23,7 @@ type
     finishAt: Tick
     cb*: Callback
 
-  TimerEventList* = DoublyLinkedRing[TimerEvent]
+  TimerEventList* = DoublyLinkedList[TimerEvent]
 
   Timer* = object
     duration*: array[numLevels, Tick]
@@ -87,6 +87,7 @@ proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
         s.setTimer(event, event.finishAt - s.timer.currentTime)
       dec s.taskCounter
     s.timer.slots[hlevel][idx].head = nil
+    s.timer.slots[hlevel][idx].tail = nil
 
 proc processTimer*(s: var Scheduler, step: Tick) =
   # if s.taskCounter > 0:
@@ -97,6 +98,7 @@ proc processTimer*(s: var Scheduler, step: Tick) =
       dec s.taskCounter
 
     s.timer.slots[0][idx].head = nil
+    s.timer.slots[0][idx].tail = nil
 
     s.timer.now[0] = (idx + 1) and mask
 
