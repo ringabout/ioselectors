@@ -227,13 +227,11 @@ when isMainModule:
     doAssert count == 3
 
 
-
-#     // Schedule multiple rotations ahead in time, to non-0 slot. (Do this
-#     // twice, once starting from slot 0, once starting from slot 5);
-#     for (int i = 0; i < 2; ++i) {
-#         timers.schedule(&timer, 256*4 + 5);
-#         timers.advance(256*4 + 4);
-#         EXPECT_INTEQ(count, 3 + i);
-#         timers.advance(1);
-#         EXPECT_INTEQ(count, 4 + i);
+    for i in 0 ..< 2:
+      s.setTimer(event0, 16 * 4 + 5)
+      s.processTimer(16 * 4 + 4)
+      doAssert count == 3 + i
+      s.processTimer(2)
+      doAssert count == 4 + i
+      dump count
 
