@@ -11,8 +11,9 @@ const
   numSlots = 1 shl widthBits
   mask = numSlots - 1
 
-assert isPowerOfTwo(widthBits)
-assert isPowerOfTwo(total)
+static:
+  doAssert isPowerOfTwo(widthBits)
+  doAssert isPowerOfTwo(total)
 
 type
   Tick* = Natural
