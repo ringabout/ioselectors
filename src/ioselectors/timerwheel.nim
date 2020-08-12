@@ -48,6 +48,10 @@ proc initTimerEvent*(cb: Callback): TimerEvent =
 proc `$`*(t: TimerEvent): string =
   $(t.finishAt, )
 
+proc reset(L: var DoublyLinkedList) =
+  L.head = nil
+  L.tail = nil
+
 # proc cancel*(t: var TimerEvent) =
 #   t.cb = nil
 
@@ -86,8 +90,7 @@ proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
       else:
         s.setTimer(event, event.finishAt - s.timer.currentTime)
       dec s.taskCounter
-    s.timer.slots[hlevel][idx].head = nil
-    s.timer.slots[hlevel][idx].tail = nil
+    s.timer.slots[hlevel][idx].reset()
 
 proc processTimer*(s: var Scheduler, step: Tick) =
   # if s.taskCounter > 0:
@@ -97,8 +100,7 @@ proc processTimer*(s: var Scheduler, step: Tick) =
       event.execute()
       dec s.taskCounter
 
-    s.timer.slots[0][idx].head = nil
-    s.timer.slots[0][idx].tail = nil
+    s.timer.slots[0][idx].reset()
 
     s.timer.now[0] = (idx + 1) and mask
 
