@@ -13,26 +13,26 @@ block:
   var event2 = initTimerEvent(proc() = discard "second")
 
 
-  s.setTimer(event0, 5)
+  discard s.setTimer(event0, 5)
   s.processTimer(4)
   doAssert count == 0
   s.processTimer(2)
   doAssert count == 1
 
 
-  # s.setTimer(event0, 5)
+  # discard s.setTimer(event0, 5)
   # event0.cancel()
   # s.processTimer(6)
 
 
-  s.setTimer(event1, 3)
-  s.setTimer(event1, 7)
-  s.setTimer(event2, 18)
-  s.setTimer(event2, 19)
-  s.setTimer(event2, 28)
-  s.setTimer(event2, 29)
-  s.setTimer(event2, 37)
-  s.setTimer(event2, 62)
+  discard s.setTimer(event1, 3)
+  discard s.setTimer(event1, 7)
+  discard s.setTimer(event2, 18)
+  discard s.setTimer(event2, 19)
+  discard s.setTimer(event2, 28)
+  discard s.setTimer(event2, 29)
+  discard s.setTimer(event2, 37)
+  discard s.setTimer(event2, 62)
   doAssert s.taskCounter == 8
   s.processTimer(17)
   doAssert s.taskCounter == 6
@@ -52,7 +52,7 @@ block:
   doAssert count == 0
   doAssert not s.isActive
 
-  s.setTimer(event0, 5, 1)
+  discard s.setTimer(event0, 5, 1)
   doAssert s.isActive
   s.processTimer(6)
   doAssert count == 1
@@ -60,17 +60,17 @@ block:
   s.processTimer(256)
   doAssert count == 1
 
-  s.setTimer(event0, 5)
+  discard s.setTimer(event0, 5)
   s.processTimer(6)
   doAssert count == 2
 
   s.processTimer(250)
-  s.setTimer(event0, 5)
+  discard s.setTimer(event0, 5)
   s.processTimer(10)
   doAssert count == 3
 
-  s.setTimer(event0, 5)
-  s.setTimer(event0, 10)
+  discard s.setTimer(event0, 5)
+  discard s.setTimer(event0, 10)
 
   s.processTimer(4)
   doAssert count == 3
@@ -86,19 +86,19 @@ block:
 
   doAssert count == 0
 
-  s.setTimer(event0, 16)
+  discard s.setTimer(event0, 16)
   s.processTimer(15)
   doAssert count == 0
   s.processTimer(2)
   doAssert count == 1
 
-  s.setTimer(event0, 17)
+  discard s.setTimer(event0, 17)
   s.processTimer(16)
   doAssert count == 1
   s.processTimer(2)
   doAssert count == 2
 
-  s.setTimer(event0, 16 * 4 - 1)
+  discard s.setTimer(event0, 16 * 4 - 1)
   s.processTimer(16 * 4 - 2)
   doAssert count == 2
   s.processTimer(2)
@@ -106,7 +106,7 @@ block:
 
 
   for i in 0 ..< 2:
-    s.setTimer(event0, 16 * 4 + 5)
+    discard s.setTimer(event0, 16 * 4 + 5)
     s.processTimer(16 * 4 + 4)
     doAssert count == 3 + i
     s.processTimer(2)
@@ -133,10 +133,10 @@ block:
   var event1b = initTimerEvent(proc() = inc count1)
 
   var s = initTimerWheel()
-  s.setTimer(event1a, 16)
-  s.setTimer(event1b, 16)
+  discard s.setTimer(event1a, 16)
+  discard s.setTimer(event1b, 16)
   s.processTimer(1)
-  s.setTimer(event0, 15)
+  discard s.setTimer(event0, 15)
   s.processTimer(14)
   doAssert count0 == 0
   doAssert count1 == 0
@@ -155,11 +155,11 @@ block:
     event0 = initTimerEvent(() => inc count0)
     s = initTimerWheel()
 
-  s.setTimer(event0, 786)
-  s.setTimer(event0, 8888)
-  s.setTimer(event0, 8888)
-  s.setTimer(event0, 7777)
-  s.setTimer(event0, 63300)
+  discard s.setTimer(event0, 786)
+  discard s.setTimer(event0, 8888)
+  discard s.setTimer(event0, 8888)
+  discard s.setTimer(event0, 7777)
+  discard s.setTimer(event0, 63300)
   s.processTimer(456)
   s.processTimer(400)
   doAssert count0 == 1

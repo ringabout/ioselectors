@@ -1,4 +1,4 @@
-import lists
+import lists, options
 import math
 
 
@@ -66,10 +66,11 @@ iterator mitems*(L: TimerEventList): var TimerEvent =
 # proc cancel*(t: var TimerEvent) =
 #   t.cb = nil
 
-proc setTimer*(s: var TimerWheel, event: var TimerEvent, timeout: Tick, repeatTimes: int = 1) =
+proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
+               timeout: Tick, repeatTimes: int = 1): Option[TimerEventList] =
   if repeatTimes == 0:
     # TODO return bool
-    return
+    return none(TimerEventList)
 
   # mod (2 ^ n - 1)
   var level = 0
@@ -92,15 +93,16 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent, timeout: Tick, repeatTi
 
   s.slots[level][scheduleAt].append event
   inc s.taskCounter
+  result = some(s.slots[level][scheduleAt])
 
 proc execute*(s: var TimerWheel, t: var TimerEvent) =
   if t.cb != nil:
     t.cb()
 
     if t.repeatTimes < 0:
-      setTimer(s, t, t.timeout, -1)
+      discard setTimer(s, t, t.timeout, -1)
     elif t.repeatTimes >= 1:
-      setTimer(s, t, t.timeout, t.repeatTimes - 1)
+      discard setTimer(s, t, t.timeout, t.repeatTimes - 1)
 
 proc degradeTimer*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel] - 1
@@ -110,7 +112,7 @@ proc degradeTimer*(s: var TimerWheel, hlevel: Tick) =
       if event.finishAt <= s.currentTime:
         s.execute(event)
       else:
-        s.setTimer(event, event.finishAt - s.currentTime)
+        discard s.setTimer(event, event.finishAt - s.currentTime)
       dec s.taskCounter
     s.slots[hlevel][idx].clear()
 
