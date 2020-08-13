@@ -26,7 +26,8 @@ type
     repeatTimes: int
     cb*: Callback
 
-  TimerEventList* = DoublyLinkedList[TimerEvent]
+  TimerEventList* = ref object
+    data: DoublyLinkedList[TimerEvent]
 
   Timer* = object
     duration*: array[numLevels, Tick]
@@ -42,6 +43,9 @@ proc initScheduler*(): Scheduler =
   for level in 0 ..< numLevels:
     result.timer.duration[level] = numSlots ^ (level + 1)
 
+    for idx in 0 ..< numSlots:
+      new result.timer.slots[level][idx]
+
 proc isActive*(s: Scheduler): bool =
   s.taskCounter != 0
 
@@ -51,9 +55,16 @@ proc initTimerEvent*(cb: Callback): TimerEvent =
 proc `$`*(t: TimerEvent): string =
   $(t.finishAt, )
 
-proc reset(L: var DoublyLinkedList) =
-  L.head = nil
-  L.tail = nil
+proc clear*(L: TimerEventList) =
+  L.data.head = nil
+  L.data.tail = nil
+
+proc append*(L: TimerEventList, ev: TimerEvent) =
+  L.data.append(ev)
+
+iterator mitems*(L: TimerEventList): var TimerEvent =
+  for item in L.data.mitems:
+    yield item
 
 # proc cancel*(t: var TimerEvent) =
 #   t.cb = nil
@@ -104,7 +115,7 @@ proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
       else:
         s.setTimer(event, event.finishAt - s.timer.currentTime)
       dec s.taskCounter
-    s.timer.slots[hlevel][idx].reset()
+    s.timer.slots[hlevel][idx].clear()
 
 proc processTimer*(s: var Scheduler, step: Tick) =
   # if s.taskCounter > 0:
@@ -114,7 +125,7 @@ proc processTimer*(s: var Scheduler, step: Tick) =
       s.execute(event)
       dec s.taskCounter
 
-    s.timer.slots[0][idx].reset()
+    s.timer.slots[0][idx].clear()
 
     s.timer.now[0] = (idx + 1) and mask
 
