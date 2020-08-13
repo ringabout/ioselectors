@@ -29,24 +29,21 @@ type
   TimerEventList* = ref object
     data: DoublyLinkedList[TimerEvent]
 
-  Timer* = object
+  TimerWheel* = object
+    taskCounter*: Natural
     duration*: array[numLevels, Tick]
     currentTime*: Tick
     now*: array[numLevels, Tick]
     slots*: array[numLevels, array[numSlots, TimerEventList]]
 
-  Scheduler* = object
-    taskCounter: Natural
-    timer: Timer
-
-proc initScheduler*(): Scheduler =
+proc initTimerWheel*(): TimerWheel =
   for level in 0 ..< numLevels:
-    result.timer.duration[level] = numSlots ^ (level + 1)
+    result.duration[level] = numSlots ^ (level + 1)
 
     for idx in 0 ..< numSlots:
-      new result.timer.slots[level][idx]
+      new result.slots[level][idx]
 
-proc isActive*(s: Scheduler): bool =
+proc isActive*(s: TimerWheel): bool =
   s.taskCounter != 0
 
 proc initTimerEvent*(cb: Callback): TimerEvent =
@@ -69,7 +66,7 @@ iterator mitems*(L: TimerEventList): var TimerEvent =
 # proc cancel*(t: var TimerEvent) =
 #   t.cb = nil
 
-proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick, repeatTimes: int = 1) =
+proc setTimer*(s: var TimerWheel, event: var TimerEvent, timeout: Tick, repeatTimes: int = 1) =
   if repeatTimes == 0:
     # TODO return bool
     return
@@ -77,7 +74,7 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick, repeatTim
   # mod (2 ^ n - 1)
   var level = 0
   # decide which level
-  while timeout >= s.timer.duration[level]:
+  while timeout >= s.duration[level]:
     inc level
 
     if level >= numLevels:
@@ -85,18 +82,18 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick, repeatTim
 
   event.repeatTimes = repeatTimes
   event.timeout = timeout
-  event.finishAt = s.timer.currentTime + timeout
+  event.finishAt = s.currentTime + timeout
 
   let scheduleAt = 
     if level == 0:
       event.finishAt and mask
     else:
-      (s.timer.now[level] + (timeout div s.timer.duration[level - 1]) - 1) and mask
+      (s.now[level] + (timeout div s.duration[level - 1]) - 1) and mask
 
-  s.timer.slots[level][scheduleAt].append event
+  s.slots[level][scheduleAt].append event
   inc s.taskCounter
 
-proc execute*(s: var Scheduler, t: var TimerEvent) =
+proc execute*(s: var TimerWheel, t: var TimerEvent) =
   if t.cb != nil:
     t.cb()
 
@@ -105,35 +102,35 @@ proc execute*(s: var Scheduler, t: var TimerEvent) =
     elif t.repeatTimes >= 1:
       setTimer(s, t, t.timeout, t.repeatTimes - 1)
 
-proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
-  let idx = s.timer.now[hlevel] - 1
+proc degradeTimer*(s: var TimerWheel, hlevel: Tick) =
+  let idx = s.now[hlevel] - 1
 
   if idx >= 0:
-    for event in s.timer.slots[hlevel][idx].mitems:
-      if event.finishAt <= s.timer.currentTime:
+    for event in s.slots[hlevel][idx].mitems:
+      if event.finishAt <= s.currentTime:
         s.execute(event)
       else:
-        s.setTimer(event, event.finishAt - s.timer.currentTime)
+        s.setTimer(event, event.finishAt - s.currentTime)
       dec s.taskCounter
-    s.timer.slots[hlevel][idx].clear()
+    s.slots[hlevel][idx].clear()
 
-proc processTimer*(s: var Scheduler, step: Tick) =
+proc processTimer*(s: var TimerWheel, step: Tick) =
   # if s.taskCounter > 0:
   for i in 0 ..< step:
-    let idx = s.timer.now[0]
-    for event in s.timer.slots[0][idx].mitems:
+    let idx = s.now[0]
+    for event in s.slots[0][idx].mitems:
       s.execute(event)
       dec s.taskCounter
 
-    s.timer.slots[0][idx].clear()
+    s.slots[0][idx].clear()
 
-    s.timer.now[0] = (idx + 1) and mask
+    s.now[0] = (idx + 1) and mask
 
     var hlevel = 0
 
-    while s.timer.now[hlevel] == 0 and hlevel < numLevels - 1:
+    while s.now[hlevel] == 0 and hlevel < numLevels - 1:
       inc hlevel
-      s.timer.now[hlevel] = (s.timer.now[hlevel] + 1) and mask
+      s.now[hlevel] = (s.now[hlevel] + 1) and mask
       degradeTimer(s, hlevel)
 
-    s.timer.currentTime = (s.timer.currentTime + 1) and (totalBits - 1)
+    s.currentTime = (s.currentTime + 1) and (totalBits - 1)

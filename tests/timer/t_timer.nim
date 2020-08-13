@@ -3,7 +3,7 @@ import sugar
 
 
 block:
-  var s = initScheduler()
+  var s = initTimerWheel()
   var count = 0
   var event0 = initTimerEvent(proc() = 
     inc count)
@@ -42,7 +42,7 @@ block:
   doAssert s.taskCounter == 3
 
 block:
-  var s = initScheduler()
+  var s = initTimerWheel()
   var count = 0
   var event0 = initTimerEvent(proc() = 
     inc count)
@@ -79,7 +79,7 @@ block:
 
 
 block:
-  var s = initScheduler()
+  var s = initTimerWheel()
   var count = 0
   var event0 = initTimerEvent(proc() = 
     inc count)
@@ -132,7 +132,7 @@ block:
   var event1a = initTimerEvent(proc() = inc count1)
   var event1b = initTimerEvent(proc() = inc count1)
 
-  var s = initScheduler()
+  var s = initTimerWheel()
   s.setTimer(event1a, 16)
   s.setTimer(event1b, 16)
   s.processTimer(1)
@@ -140,20 +140,20 @@ block:
   s.processTimer(14)
   doAssert count0 == 0
   doAssert count1 == 0
-  doAssert s.timer.currentTime == 15
+  doAssert s.currentTime == 15
 
   s.processTimer(2)
 
   doAssert count0 == 1
   doAssert count1 == 2
 
-  doAssert s.timer.currentTime == 17
+  doAssert s.currentTime == 17
 
 block:
   var 
     count0 = 0
     event0 = initTimerEvent(() => inc count0)
-    s = initScheduler()
+    s = initTimerWheel()
 
   s.setTimer(event0, 786)
   s.setTimer(event0, 8888)
