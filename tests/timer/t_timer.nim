@@ -52,7 +52,7 @@ block:
   doAssert count == 0
   doAssert not s.isActive
 
-  s.setTimer(event0, 5)
+  s.setTimer(event0, 5, 1)
   doAssert s.isActive
   s.processTimer(6)
   doAssert count == 1

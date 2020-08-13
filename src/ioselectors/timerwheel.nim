@@ -22,6 +22,8 @@ type
 
   TimerEvent* = object
     finishAt: Tick
+    timeout: Tick
+    repeatTimes: int
     cb*: Callback
 
   TimerEventList* = DoublyLinkedList[TimerEvent]
@@ -56,11 +58,11 @@ proc reset(L: var DoublyLinkedList) =
 # proc cancel*(t: var TimerEvent) =
 #   t.cb = nil
 
-proc execute*(t: TimerEvent) =
-  if t.cb != nil:
-    t.cb()
+proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick, repeatTimes: int = 1) =
+  if repeatTimes == 0:
+    # TODO return bool
+    return
 
-proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   # mod (2 ^ n - 1)
   var level = 0
   # decide which level
@@ -70,6 +72,8 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
     if level >= numLevels:
       doAssert false, "Number is too large "
 
+  event.repeatTimes = repeatTimes
+  event.timeout = timeout
   event.finishAt = s.timer.currentTime + timeout
 
   let scheduleAt = 
@@ -81,13 +85,22 @@ proc setTimer*(s: var Scheduler, event: var TimerEvent, timeout: Tick) =
   s.timer.slots[level][scheduleAt].append event
   inc s.taskCounter
 
+proc execute*(s: var Scheduler, t: var TimerEvent) =
+  if t.cb != nil:
+    t.cb()
+
+    if t.repeatTimes < 0:
+      setTimer(s, t, t.timeout, -1)
+    elif t.repeatTimes >= 1:
+      setTimer(s, t, t.timeout, t.repeatTimes - 1)
+
 proc degradeTimer*(s: var Scheduler, hlevel: Tick) =
   let idx = s.timer.now[hlevel] - 1
 
   if idx >= 0:
     for event in s.timer.slots[hlevel][idx].mitems:
       if event.finishAt <= s.timer.currentTime:
-        event.execute()
+        s.execute(event)
       else:
         s.setTimer(event, event.finishAt - s.timer.currentTime)
       dec s.taskCounter
@@ -97,8 +110,8 @@ proc processTimer*(s: var Scheduler, step: Tick) =
   # if s.taskCounter > 0:
   for i in 0 ..< step:
     let idx = s.timer.now[0]
-    for event in s.timer.slots[0][idx]:
-      event.execute()
+    for event in s.timer.slots[0][idx].mitems:
+      s.execute(event)
       dec s.taskCounter
 
     s.timer.slots[0][idx].reset()
