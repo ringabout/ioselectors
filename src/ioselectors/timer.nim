@@ -1,6 +1,7 @@
 import timerwheel
 import std/monotimes
 import times, heapqueue, options
+import os
 
 
 type
@@ -12,8 +13,8 @@ type
   Timer* = object
     wheel*: TimerWheel
     queue*: HeapQueue[TimerItem]
-    now*: MonoTime
-    interval*: Tick
+    start*: MonoTime
+    interval*: Tick ## Units is millisecs.
 
 
 proc initTimerItem*(finishAt: MonoTime, slot: TimerEventList, timeout: Tick): TimerItem =
@@ -25,7 +26,7 @@ proc `<`*(x, y: TimerItem): bool =
 proc initTimer*(interval: Tick = 100): Timer =
   result.wheel = initTimerWheel()
   result.queue = initHeapQueue[TimerItem]()
-  result.now = getMonoTime()
+  result.start = getMonoTime()
   result.interval = interval
 
 proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick, 
@@ -54,3 +55,29 @@ proc process*(timer: var Timer): Option[int] =
   else:
     let millisecs = (timer.queue[0].finishAt - getMonoTime()).inMilliseconds
     result = some(millisecs.int + 1)
+
+proc poll(timer: var Timer, timeout = 50) =
+  sleep(timeout)
+  discard process(timer)
+
+
+
+var t = initTimer(100)
+var count = 0
+var event0 = initTimerEvent(proc() = 
+  inc count)
+
+
+var event1 = initTimerEvent(proc() = echo "first")
+var event2 = initTimerEvent(proc() = echo "second")
+
+
+discard t.add(event1, 10)
+discard t.add(event2, 1)
+
+echo t
+while t.wheel.taskCounter != 0:
+  poll(t, 1000)
+  echo t
+
+echo t
