@@ -32,15 +32,18 @@ proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick,
           repeatTimes: int = 1): bool =
   result = false
 
-  let count = timer.wheel.setTimer(event, timeout, repeatTimes)
-  if count.isSome:
-    let count = count.get
-    if count == 1:
+  let eventNode = timer.wheel.setTimer(event, timeout, repeatTimes)
+  if eventNode.isSome:
+    let event = eventNode.get.value
+    if event.count == 0:
       timer.queue.push(initTimerItem(getMonoTime() + initDuration(
                        milliseconds = timeout * timer.interval),
                        timer.wheel.currentTime + timeout))
 
     result = true
+
+proc cancel*(s: var Timer, eventNode: TimerEventNode) =
+  s.wheel.cancel(eventNode)
 
 proc execute*(s: var Timer, t: var TimerEvent) =
   if t.cb != nil:
@@ -106,31 +109,6 @@ proc poll(timer: var Timer, timeout = 50) =
 
 
 when isMainModule:
-  # block:
-  #   var t = initTimer(100)
-  #   var count = 0
-  #   var event0 = initTimerEvent(proc() = 
-  #     inc count)
-
-
-  #   var event1 = initTimerEvent(proc() = echo "first")
-  #   var event2 = initTimerEvent(proc() = echo "second")
-
-  #   discard t.add(event1, 10)
-  #   discard t.add(event2, 1)
-
-  #   poll(t, 100)
-  #   discard t.add(event0, 5)
-
-  #   discard t.add(event1, 9)
-  #   echo t
-  #   poll(t, 1000)
-  #   doAssert count == 1, $count
-  #   discard t.add(event0, 2)
-
-  #   poll(t, 200)
-  #   doAssert count == 2, $count
-
   block:
     var t = initTimer(100)
     var count = 0
@@ -141,11 +119,36 @@ when isMainModule:
     var event1 = initTimerEvent(proc() = echo "first")
     var event2 = initTimerEvent(proc() = echo "second")
 
-    discard t.add(event1, 2, -1)
-    while true:
-      echo t
-      echo t.wheel.slotsToString(0)
-      poll(t, 200)
+    discard t.add(event1, 10)
+    discard t.add(event2, 1)
+
+    poll(t, 100)
+    discard t.add(event0, 5)
+
+    discard t.add(event1, 9)
+    echo t
+    poll(t, 1000)
+    doAssert count == 1, $count
+    discard t.add(event0, 2)
+
+    poll(t, 200)
+    doAssert count == 2, $count
+
+  # block:
+  #   var t = initTimer(1)
+  #   var count = 0
+  #   var event0 = initTimerEvent(proc() = 
+  #     inc count)
+
+
+  #   var event1 = initTimerEvent(proc() = echo "first")
+  #   var event2 = initTimerEvent(proc() = echo "second")
+
+  #   discard t.add(event1, 2, -1)
+  #   while true:
+  #     echo t
+  #     # echo t.wheel.slotsToString(0)
+  #     poll(t, 2)
 
 
 

@@ -25,6 +25,9 @@ type
     timeout*: Tick
     repeatTimes*: int
     cb*: Callback
+    count*: Tick
+
+  TimerEventNode* = DoublyLinkedNode[TimerEvent]
 
   TimerEventList* = ref object
     data*: DoublyLinkedList[TimerEvent]
@@ -36,6 +39,7 @@ type
     currentTime*: Tick
     now*: array[numLevels, Tick]
     slots*: array[numLevels, array[numSlots, TimerEventList]]
+
 
 proc initTimerWheel*(): TimerWheel =
   for level in 0 ..< numLevels:
@@ -69,9 +73,13 @@ proc clear*(L: TimerEventList) =
   L.data.tail = nil
   L.count = 0
 
-proc append*(L: TimerEventList, ev: TimerEvent) =
+proc append*(L: TimerEventList, ev: TimerEventNode) =
   L.data.append(ev)
   inc L.count
+
+proc remove*(L: TimerEventList, ev: TimerEventNode) =
+  L.data.remove(ev)
+  dec L.count
 
 iterator mitems*(L: TimerEventList): var TimerEvent =
   for item in L.data.mitems:
@@ -81,10 +89,10 @@ iterator mitems*(L: TimerEventList): var TimerEvent =
 #   t.cb = nil
 
 proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
-               timeout: Tick, repeatTimes: int = 1): Option[Tick] =
+               timeout: Tick, repeatTimes: int = 1): Option[TimerEventNode] =
   ## Returns the number of TimerEvent in TimerEventList.
   if repeatTimes == 0:
-    return none(Tick)
+    return none(TimerEventNode)
 
   # mod (2 ^ n - 1)
   var level = 0
@@ -106,9 +114,34 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
       (s.now[level] + (timeout div s.duration[level - 1]) - 1) and mask
 
 
-  s.slots[level][scheduleAt].append event
+  event.count = s.slots[level][scheduleAt].count
+
+  let node = newDoublyLinkedNode(event)
+  s.slots[level][scheduleAt].append node
+
   inc s.taskCounter
-  result = some(s.slots[level][scheduleAt].count)
+
+  result = some(node)
+
+proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
+  # mod (2 ^ n - 1)
+  var level = 0
+
+  let event = eventNode.value
+  # decide which level
+  while event.timeout >= s.duration[level]:
+    inc level
+
+    if level >= numLevels:
+      doAssert false, "Number is too large "
+
+  let scheduleAt = 
+    if level == 0:
+      event.finishAt and mask
+    else:
+      (s.now[level] + (event.timeout div s.duration[level - 1]) - 1) and mask
+
+  s.slots[level][scheduleAt].remove(eventNode)
 
 proc execute*(s: var TimerWheel, t: var TimerEvent) =
   if t.cb != nil:
