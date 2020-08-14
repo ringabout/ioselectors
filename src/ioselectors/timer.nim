@@ -35,9 +35,11 @@ proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick,
 
   var evlist = timer.wheel.setTimer(event, timeout, repeatTimes)
   if evlist.isSome:
-    timer.queue.push(initTimerItem(getMonoTime() + initDuration(
-                     milliseconds = timeout * timer.interval), evlist.get,
-                     timeout))
+    let list = evlist.get
+    if list.count == 1:
+      timer.queue.push(initTimerItem(getMonoTime() + initDuration(
+                       milliseconds = timeout * timer.interval), list,
+                       timeout))
 
     result = true
 
@@ -47,7 +49,15 @@ proc process*(timer: var Timer): Option[int] =
 
   while count > 0 and timer.queue[0].finishAt <= now:
     let item = timer.queue.pop
-    timer.wheel.advance(item.timeout)
+    if item.slot.data.head != nil:
+      let timeout = 
+        if item.slot.data.head.value.finishAt - timer.wheel.currentTime >= 0:
+          item.slot.data.head.value.finishAt - timer.wheel.currentTime
+        else:
+          0
+      timer.wheel.update(timeout)
+    else:
+      timer.wheel.update(item.timeout)
     dec count
 
   if timer.queue.len == 0:
@@ -62,22 +72,30 @@ proc poll(timer: var Timer, timeout = 50) =
 
 
 
-var t = initTimer(100)
-var count = 0
-var event0 = initTimerEvent(proc() = 
-  inc count)
+when isMainModule:
+  var t = initTimer(100)
+  var count = 0
+  var event0 = initTimerEvent(proc() = 
+    inc count)
 
 
-var event1 = initTimerEvent(proc() = echo "first")
-var event2 = initTimerEvent(proc() = echo "second")
+  var event1 = initTimerEvent(proc() = echo "first")
+  var event2 = initTimerEvent(proc() = echo "second")
 
 
-discard t.add(event1, 10)
-discard t.add(event2, 1)
+  discard t.add(event1, 10)
+  discard t.add(event2, 1)
 
-echo t
-while t.wheel.taskCounter != 0:
-  poll(t, 1000)
+  poll(t, 100)
+  discard t.add(event1, 9)
   echo t
+  poll(t, 1000)
 
-echo t
+
+# echo t
+# echo t.wheel.slotsToString(0)
+# while t.wheel.taskCounter != 0:
+#   poll(t, 1000)
+#   echo t
+
+# echo t

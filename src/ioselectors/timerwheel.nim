@@ -21,13 +21,14 @@ type
   Callback* = proc() {.gcsafe.}
 
   TimerEvent* = object
-    finishAt: Tick
-    timeout: Tick
+    finishAt*: Tick
+    timeout*: Tick
     repeatTimes: int
     cb*: Callback
 
   TimerEventList* = ref object
-    data: DoublyLinkedList[TimerEvent]
+    data*: DoublyLinkedList[TimerEvent]
+    count*: int
 
   TimerWheel* = object
     taskCounter*: Natural
@@ -52,12 +53,24 @@ proc initTimerEvent*(cb: Callback): TimerEvent =
 proc `$`*(t: TimerEvent): string =
   $(t.finishAt, )
 
+proc slotsToString*(t: TimerWheel, level: Tick): string =
+  result = "["
+  let slots = t.slots[level]
+  for idx in 0 ..< numSlots - 1:
+    result.add $(slots[idx][]) & ", "
+  result.add $(slots[^1][])
+  result.add "]"
+
+proc isEmpty*(L: TimerEventList): bool =
+  L.data.head == nil and L.data.tail == nil
+
 proc clear*(L: TimerEventList) =
   L.data.head = nil
   L.data.tail = nil
 
 proc append*(L: TimerEventList, ev: TimerEvent) =
   L.data.append(ev)
+  inc L.count
 
 iterator mitems*(L: TimerEventList): var TimerEvent =
   for item in L.data.mitems:
@@ -69,7 +82,6 @@ iterator mitems*(L: TimerEventList): var TimerEvent =
 proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
                timeout: Tick, repeatTimes: int = 1): Option[TimerEventList] =
   if repeatTimes == 0:
-    # TODO return bool
     return none(TimerEventList)
 
   # mod (2 ^ n - 1)
