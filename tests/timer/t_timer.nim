@@ -14,15 +14,15 @@ block:
 
 
   discard s.setTimer(event0, 5)
-  s.processTimer(4)
+  s.advance(4)
   doAssert count == 0
-  s.processTimer(2)
+  s.advance(2)
   doAssert count == 1
 
 
   # discard s.setTimer(event0, 5)
   # event0.cancel()
-  # s.processTimer(6)
+  # s.advance(6)
 
 
   discard s.setTimer(event1, 3)
@@ -34,11 +34,11 @@ block:
   discard s.setTimer(event2, 37)
   discard s.setTimer(event2, 62)
   doAssert s.taskCounter == 8
-  s.processTimer(17)
+  s.advance(17)
   doAssert s.taskCounter == 6
-  s.processTimer(4)
+  s.advance(4)
   doAssert s.taskCounter == 4
-  s.processTimer(8)
+  s.advance(8)
   doAssert s.taskCounter == 3
 
 block:
@@ -48,33 +48,33 @@ block:
     inc count)
 
   # Scheduler does nothing
-  s.processTimer(10)
+  s.advance(10)
   doAssert count == 0
   doAssert not s.isActive
 
   discard s.setTimer(event0, 5, 1)
   doAssert s.isActive
-  s.processTimer(6)
+  s.advance(6)
   doAssert count == 1
 
-  s.processTimer(256)
+  s.advance(256)
   doAssert count == 1
 
   discard s.setTimer(event0, 5)
-  s.processTimer(6)
+  s.advance(6)
   doAssert count == 2
 
-  s.processTimer(250)
+  s.advance(250)
   discard s.setTimer(event0, 5)
-  s.processTimer(10)
+  s.advance(10)
   doAssert count == 3
 
   discard s.setTimer(event0, 5)
   discard s.setTimer(event0, 10)
 
-  s.processTimer(4)
+  s.advance(4)
   doAssert count == 3
-  s.processTimer(2)
+  s.advance(2)
   doAssert count == 4
 
 
@@ -87,29 +87,29 @@ block:
   doAssert count == 0
 
   discard s.setTimer(event0, 16)
-  s.processTimer(15)
+  s.advance(15)
   doAssert count == 0
-  s.processTimer(2)
+  s.advance(2)
   doAssert count == 1
 
   discard s.setTimer(event0, 17)
-  s.processTimer(16)
+  s.advance(16)
   doAssert count == 1
-  s.processTimer(2)
+  s.advance(2)
   doAssert count == 2
 
   discard s.setTimer(event0, 16 * 4 - 1)
-  s.processTimer(16 * 4 - 2)
+  s.advance(16 * 4 - 2)
   doAssert count == 2
-  s.processTimer(2)
+  s.advance(2)
   doAssert count == 3
 
 
   for i in 0 ..< 2:
     discard s.setTimer(event0, 16 * 4 + 5)
-    s.processTimer(16 * 4 + 4)
+    s.advance(16 * 4 + 4)
     doAssert count == 3 + i
-    s.processTimer(2)
+    s.advance(2)
     doAssert count == 4 + i
 
 
@@ -135,14 +135,14 @@ block:
   var s = initTimerWheel()
   discard s.setTimer(event1a, 16)
   discard s.setTimer(event1b, 16)
-  s.processTimer(1)
+  s.advance(1)
   discard s.setTimer(event0, 15)
-  s.processTimer(14)
+  s.advance(14)
   doAssert count0 == 0
   doAssert count1 == 0
   doAssert s.currentTime == 15
 
-  s.processTimer(2)
+  s.advance(2)
 
   doAssert count0 == 1
   doAssert count1 == 2
@@ -160,10 +160,10 @@ block:
   discard s.setTimer(event0, 8888)
   discard s.setTimer(event0, 7777)
   discard s.setTimer(event0, 63300)
-  s.processTimer(456)
-  s.processTimer(400)
+  s.advance(456)
+  s.advance(400)
   doAssert count0 == 1
-  s.processTimer(9000)
+  s.advance(9000)
   doAssert count0 == 4
-  s.processTimer(60000)
+  s.advance(60000)
   doAssert count0 == 5

@@ -104,7 +104,7 @@ proc execute*(s: var TimerWheel, t: var TimerEvent) =
     elif t.repeatTimes >= 1:
       discard setTimer(s, t, t.timeout, t.repeatTimes - 1)
 
-proc degradeTimer*(s: var TimerWheel, hlevel: Tick) =
+proc degrade*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel] - 1
 
   if idx >= 0:
@@ -116,8 +116,7 @@ proc degradeTimer*(s: var TimerWheel, hlevel: Tick) =
       dec s.taskCounter
     s.slots[hlevel][idx].clear()
 
-proc processTimer*(s: var TimerWheel, step: Tick) =
-  # if s.taskCounter > 0:
+proc advance*(s: var TimerWheel, step: Tick) =
   for i in 0 ..< step:
     let idx = s.now[0]
     for event in s.slots[0][idx].mitems:
@@ -133,6 +132,27 @@ proc processTimer*(s: var TimerWheel, step: Tick) =
     while s.now[hlevel] == 0 and hlevel < numLevels - 1:
       inc hlevel
       s.now[hlevel] = (s.now[hlevel] + 1) and mask
-      degradeTimer(s, hlevel)
+      degrade(s, hlevel)
 
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
+
+proc update*(s: var TimerWheel, step: Tick) =
+  for i in 0 ..< step:
+    let idx = s.now[0]
+
+    s.now[0] = (idx + 1) and mask
+
+    var hlevel = 0
+
+    while s.now[hlevel] == 0 and hlevel < numLevels - 1:
+      inc hlevel
+      s.now[hlevel] = (s.now[hlevel] + 1) and mask
+      degrade(s, hlevel)
+
+    s.currentTime = (s.currentTime + 1) and (totalBits - 1)
+
+
+  let idx = s.now[0]
+  for event in s.slots[0][idx].mitems:
+    s.execute(event)
+    dec s.taskCounter
