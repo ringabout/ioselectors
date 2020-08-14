@@ -28,7 +28,7 @@ type
 
   TimerEventList* = ref object
     data*: DoublyLinkedList[TimerEvent]
-    count*: int
+    count*: Tick
 
   TimerWheel* = object
     taskCounter*: Natural
@@ -80,9 +80,10 @@ iterator mitems*(L: TimerEventList): var TimerEvent =
 #   t.cb = nil
 
 proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
-               timeout: Tick, repeatTimes: int = 1): Option[TimerEventList] =
+               timeout: Tick, repeatTimes: int = 1): Option[Tick] =
+  ## Returns the number of TimerEvent in TimerEventList.
   if repeatTimes == 0:
-    return none(TimerEventList)
+    return none(Tick)
 
   # mod (2 ^ n - 1)
   var level = 0
@@ -105,7 +106,7 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
 
   s.slots[level][scheduleAt].append event
   inc s.taskCounter
-  result = some(s.slots[level][scheduleAt])
+  result = some(s.slots[level][scheduleAt].count)
 
 proc execute*(s: var TimerWheel, t: var TimerEvent) =
   if t.cb != nil:
