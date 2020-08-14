@@ -5,11 +5,11 @@ import math
 const
   widthBits {.intdefine.} = 4
   total {.intdefine.} = 16
-  totalBits = 1 shl total
+  totalBits* = 1 shl total
   # numLevels = (32 + widthBits - 1) div widthBits
-  numLevels = total div widthBits
+  numLevels* = total div widthBits
   numSlots = 1 shl widthBits
-  mask = numSlots - 1
+  mask* = numSlots - 1
 
 static:
   doAssert isPowerOfTwo(widthBits)
@@ -23,7 +23,7 @@ type
   TimerEvent* = object
     finishAt*: Tick
     timeout*: Tick
-    repeatTimes: int
+    repeatTimes*: int
     cb*: Callback
 
   TimerEventList* = ref object
@@ -67,6 +67,7 @@ proc isEmpty*(L: TimerEventList): bool =
 proc clear*(L: TimerEventList) =
   L.data.head = nil
   L.data.tail = nil
+  L.count = 0
 
 proc append*(L: TimerEventList, ev: TimerEvent) =
   L.data.append(ev)
@@ -103,6 +104,7 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
       event.finishAt and mask
     else:
       (s.now[level] + (timeout div s.duration[level - 1]) - 1) and mask
+
 
   s.slots[level][scheduleAt].append event
   inc s.taskCounter
@@ -169,3 +171,5 @@ proc update*(s: var TimerWheel, step: Tick) =
   for event in s.slots[0][idx].mitems:
     s.execute(event)
     dec s.taskCounter
+
+  s.slots[0][idx].clear()
