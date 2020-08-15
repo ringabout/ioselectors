@@ -30,29 +30,35 @@ proc initTimer*(interval: Tick = 100): Timer =
   result.start = getMonoTime()
   result.interval = interval
 
-proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick, 
-          repeatTimes: int = 1): TimerEventNode =
+proc add*(timer: var Timer, event: TimerEventNode, timeout: Tick, 
+          repeatTimes: int = 1) =
 
-  result = timer.wheel.setTimer(event, timeout, repeatTimes)
-  if result != nil:
-    let event = result.value
+  timer.wheel.setTimer(event, timeout, repeatTimes)
+  if event != nil:
+    let event = event.value
     if event.count == 0:
       timer.queue.push(initTimerItem(getMonoTime() + initDuration(
                        milliseconds = timeout * timer.interval),
                        timer.wheel.currentTime + timeout))
 
+proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick, 
+          repeatTimes: int = 1): TimerEventNode =
+
+  result = newDoublyLinkedNode(event)
+  timer.add(result, timeout, repeatTimes)
+
 proc cancel*(s: var Timer, eventNode: TimerEventNode) =
   s.wheel.cancel(eventNode)
 
-proc execute*(s: var Timer, t: var TimerEvent) =
-  if t.cb != nil:
-    t.cb()
+proc execute*(s: var Timer, t: TimerEventNode) =
+  if t.value.cb != nil:
+    t.value.cb()
 
     # TODO cancel
-    if t.repeatTimes < 0:
-      discard add(s, t, t.timeout, -1)
-    elif t.repeatTimes >= 1:
-      discard add(s, t, t.timeout, t.repeatTimes - 1)
+    if t.value.repeatTimes < 0:
+      add(s, t, t.value.timeout, -1)
+    elif t.value.repeatTimes >= 1:
+      add(s, t, t.value.timeout, t.value.repeatTimes - 1)
 
 proc update*(s: var Timer, step: Tick) =
   for i in 0 ..< step:
@@ -72,9 +78,8 @@ proc update*(s: var Timer, step: Tick) =
 
 
   let idx = s.wheel.now[0]
-  for event in s.wheel.slots[0][idx].items:
-    var event = event
-    s.execute(event)
+  for node in s.wheel.slots[0][idx].nodes:
+    s.execute(node)
     dec s.wheel.taskCounter
 
   s.wheel.slots[0][idx].clear()
@@ -108,34 +113,33 @@ proc poll(timer: var Timer, timeout = 50) =
   discard process(timer)
 
 
-
 when isMainModule:
-  # block:
-  #   var t = initTimer(1)
-  #   var count = 0
-  #   var event0 = initTimerEvent(proc() =
-  #     inc count)
+  block:
+    var t = initTimer(1)
+    var count = 0
+    var event0 = initTimerEvent(proc() =
+      inc count)
 
-  #   # One shot
-  #   discard t.add(event0, 10)
-  #   doAssert count == 0
-  #   t.poll(10)
-  #   doAssert count == 1
+    # One shot
+    discard t.add(event0, 10)
+    doAssert count == 0
+    t.poll(10)
+    doAssert count == 1
 
-  #   # Repeat five times
-  #   discard t.add(event0, 10, 5)
-  #   for i in 0 ..< 5:
-  #     t.poll(10)
-  #   doAssert count == 6
+    # Repeat five times
+    discard t.add(event0, 10, 5)
+    for i in 0 ..< 5:
+      t.poll(10)
+    doAssert count == 6
 
-  #   discard t.add(event0, 16, 1)
-  #   t.poll(17)
-  #   doAssert count == 7, $count
+    discard t.add(event0, 16, 1)
+    t.poll(17)
+    doAssert count == 7, $count
 
 
-  #   discard t.add(event0, 25, 1)
-  #   t.poll(25)
-  #   doAssert count == 8
+    discard t.add(event0, 25, 1)
+    t.poll(25)
+    doAssert count == 8
 
 
   block:
@@ -172,8 +176,6 @@ when isMainModule:
     echo t.wheel.taskCounter
     t.poll(13)
     doAssert count == 0, $count
-
-
 
 
   # block:

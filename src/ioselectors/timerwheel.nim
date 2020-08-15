@@ -152,14 +152,14 @@ proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
   s.slots[level][scheduleAt].remove(eventNode)
   dec s.taskCounter
 
-proc execute*(s: var TimerWheel, t: var TimerEvent) =
-  if t.cb != nil:
-    t.cb()
+proc execute*(s: var TimerWheel, t: TimerEventNode) =
+  if t.value.cb != nil:
+    t.value.cb()
 
-    if t.repeatTimes < 0:
-      discard setTimer(s, t, t.timeout, -1)
-    elif t.repeatTimes >= 1:
-      discard setTimer(s, t, t.timeout, t.repeatTimes - 1)
+    if t.value.repeatTimes < 0:
+      setTimer(s, t, t.value.timeout, -1)
+    elif t.value.repeatTimes >= 1:
+      setTimer(s, t, t.value.timeout, t.value.repeatTimes - 1)
 
 proc degrade*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel] - 1
@@ -167,21 +167,17 @@ proc degrade*(s: var TimerWheel, hlevel: Tick) =
   if idx >= 0:
     for node in s.slots[hlevel][idx].nodes:
       s.slots[hlevel][idx].remove(node)
-      var event = node.value
-      if event.finishAt <= s.currentTime:
-        s.execute(event)
+      if node.value.finishAt <= s.currentTime:
+        s.execute(node)
       else:
-        s.setTimer(node, event.finishAt - s.currentTime)
-        # node.next = n.next
-        # node.prev = n.prev
+        s.setTimer(node, node.value.finishAt - s.currentTime)
       dec s.taskCounter
-    # s.slots[hlevel][idx].clear()
 
 proc advance*(s: var TimerWheel, step: Tick) =
   for i in 0 ..< step:
     let idx = s.now[0]
-    for event in s.slots[0][idx].mitems:
-      s.execute(event)
+    for node in s.slots[0][idx].nodes:
+      s.execute(node)
       dec s.taskCounter
 
     s.slots[0][idx].clear()
@@ -214,8 +210,8 @@ proc update*(s: var TimerWheel, step: Tick) =
 
 
   let idx = s.now[0]
-  for event in s.slots[0][idx].mitems:
-    s.execute(event)
+  for node in s.slots[0][idx].nodes:
+    s.execute(node)
     dec s.taskCounter
 
   s.slots[0][idx].clear()
