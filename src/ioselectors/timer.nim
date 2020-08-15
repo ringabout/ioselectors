@@ -58,6 +58,7 @@ proc update*(s: var Timer, step: Tick) =
   for i in 0 ..< step:
     let idx = s.wheel.now[0]
 
+
     s.wheel.now[0] = (idx + 1) and mask
 
     var hlevel = 0
@@ -71,7 +72,8 @@ proc update*(s: var Timer, step: Tick) =
 
 
   let idx = s.wheel.now[0]
-  for event in s.wheel.slots[0][idx].mitems:
+  for event in s.wheel.slots[0][idx].items:
+    var event = event
     s.execute(event)
     dec s.wheel.taskCounter
 
@@ -152,21 +154,24 @@ when isMainModule:
 
     let n2 = t.add(event0, 28)
     discard t.add(event1, 12)
+    # echo n2.repr
     t.poll(13)
+    echo n2.repr
+    echo t.wheel.slots[1].repr
 
     t.cancel(n2)
     echo t.wheel.slotsToString(1)
 
-    # doAssert count == 0, $count
+    doAssert count == 0, $count
 
 
-    # let n3 = t.add(event0, 18)
-    # discard t.add(event1, 12)
-    # echo t.wheel.taskCounter
-    # t.cancel(n3)
-    # echo t.wheel.taskCounter
-    # t.poll(13)
-    # doAssert count == 0, $count
+    let n3 = t.add(event0, 18)
+    discard t.add(event1, 12)
+    echo t.wheel.taskCounter
+    t.cancel(n3)
+    echo t.wheel.taskCounter
+    t.poll(13)
+    doAssert count == 0, $count
 
 
 
