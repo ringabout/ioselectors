@@ -77,8 +77,14 @@ proc append*(L: TimerEventList, ev: TimerEventNode) =
   L.data.append(ev)
   inc L.count
 
+proc internalRemove(L: var DoublyLinkedList[TimerEvent], n: TimerEventNode) =
+  if n == L.tail: L.tail = n.prev
+  if n == L.head: L.head = n.next
+  if n.next != nil: n.next.prev = n.prev
+  if n.prev != nil: n.prev.next = n.next
+
 proc remove*(L: TimerEventList, ev: TimerEventNode) =
-  L.data.remove(ev)
+  L.data.internalRemove(ev)
   dec L.count
 
 iterator mitems*(L: TimerEventList): var TimerEvent =
@@ -89,10 +95,10 @@ iterator mitems*(L: TimerEventList): var TimerEvent =
 #   t.cb = nil
 
 proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
-               timeout: Tick, repeatTimes: int = 1): Option[TimerEventNode] =
+               timeout: Tick, repeatTimes: int = 1): TimerEventNode =
   ## Returns the number of TimerEvent in TimerEventList.
   if repeatTimes == 0:
-    return none(TimerEventNode)
+    return
 
   # mod (2 ^ n - 1)
   var level = 0
@@ -116,12 +122,9 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
 
   event.count = s.slots[level][scheduleAt].count
 
-  let node = newDoublyLinkedNode(event)
-  s.slots[level][scheduleAt].append node
-
+  result = newDoublyLinkedNode(event)
+  s.slots[level][scheduleAt].append result
   inc s.taskCounter
-
-  result = some(node)
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
   # mod (2 ^ n - 1)
@@ -141,7 +144,9 @@ proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
     else:
       (s.now[level] + (event.timeout div s.duration[level - 1]) - 1) and mask
 
+
   s.slots[level][scheduleAt].remove(eventNode)
+  dec s.taskCounter
 
 proc execute*(s: var TimerWheel, t: var TimerEvent) =
   if t.cb != nil:
