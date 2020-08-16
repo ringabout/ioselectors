@@ -1,169 +1,146 @@
-include ../../src/ioselectors/timerwheel
-import sugar
+include ../../src/ioselectors/timer
 
 
 block:
-  var s = initTimerWheel()
+  var t = initTimer(1)
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc() =
     inc count)
 
-
-  var event1 = initTimerEvent(proc() = discard "first")
-  var event2 = initTimerEvent(proc() = discard "second")
-
-
-  discard s.setTimer(event0, 5)
-  s.advance(4)
+  # One shot
+  discard t.add(event0, 10)
   doAssert count == 0
-  s.advance(2)
+  t.poll(10)
   doAssert count == 1
 
+  # Repeat five times
+  discard t.add(event0, 10, 5)
+  for i in 0 ..< 5:
+    t.poll(10)
+  doAssert count == 6
 
-  # discard s.setTimer(event0, 5)
-  # event0.cancel()
-  # s.advance(6)
+  discard t.add(event0, 16, 1)
+  t.poll(17)
+  doAssert count == 7, $count
 
+  discard t.add(event0, 25, 1)
+  t.poll(25)
+  doAssert count == 8
 
-  discard s.setTimer(event1, 3)
-  discard s.setTimer(event1, 7)
-  discard s.setTimer(event2, 18)
-  discard s.setTimer(event2, 19)
-  discard s.setTimer(event2, 28)
-  discard s.setTimer(event2, 29)
-  discard s.setTimer(event2, 37)
-  discard s.setTimer(event2, 62)
-  doAssert s.taskCounter == 8
-  s.advance(17)
-  doAssert s.taskCounter == 6
-  s.advance(4)
-  doAssert s.taskCounter == 4
-  s.advance(8)
-  doAssert s.taskCounter == 3
+  ## Repeat forever
+  discard t.add(event0, 1, -1)
+
+  for i in 0 ..< 10:
+    t.poll(1)
+    # echo t.wheel.slotsToString(0)
+    # echo t
+  doAssert count == 18, $count
+
 
 block:
-  var s = initTimerWheel()
+  var t = initTimer(1)
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc() =
     inc count)
 
-  # Scheduler does nothing
-  s.advance(10)
-  doAssert count == 0
-  doAssert not s.isActive
-
-  discard s.setTimer(event0, 5, 1)
-  doAssert s.isActive
-  s.advance(6)
-  doAssert count == 1
-
-  s.advance(256)
-  doAssert count == 1
-
-  discard s.setTimer(event0, 5)
-  s.advance(6)
-  doAssert count == 2
-
-  s.advance(250)
-  discard s.setTimer(event0, 5)
-  s.advance(10)
-  doAssert count == 3
-
-  discard s.setTimer(event0, 5)
-  discard s.setTimer(event0, 10)
-
-  s.advance(4)
-  doAssert count == 3
-  s.advance(2)
-  doAssert count == 4
-
-
-block:
-  var s = initTimerWheel()
-  var count = 0
-  var event0 = initTimerEvent(proc() = 
-    inc count)
-
-  doAssert count == 0
-
-  discard s.setTimer(event0, 16)
-  s.advance(15)
-  doAssert count == 0
-  s.advance(2)
-  doAssert count == 1
-
-  discard s.setTimer(event0, 17)
-  s.advance(16)
-  doAssert count == 1
-  s.advance(2)
-  doAssert count == 2
-
-  discard s.setTimer(event0, 16 * 4 - 1)
-  s.advance(16 * 4 - 2)
-  doAssert count == 2
-  s.advance(2)
-  doAssert count == 3
-
-
-  for i in 0 ..< 2:
-    discard s.setTimer(event0, 16 * 4 + 5)
-    s.advance(16 * 4 + 4)
-    doAssert count == 3 + i
-    s.advance(2)
-    doAssert count == 4 + i
-
-
-block:
   var event1 = initTimerEvent(proc() =
     discard)
 
-  var event2 = initTimerEvent(proc() =
-    discard)
+  let n1 = t.add(event0, 15)
+  t.cancel(n1)
+  t.poll(16)
+  doAssert count == 0
 
-  discard event1
-  discard event2
+  let n2 = t.add(event0, 28)
+  discard t.add(event1, 12)
+  t.poll(13)
+
+  t.cancel(n2)
+
+  doAssert count == 0, $count
 
 
-block:
-  var count0 = 0
-  var count1 = 0
+  let n3 = t.add(event0, 18)
+  discard t.add(event1, 12)
+  t.cancel(n3)
+  t.poll(13)
+  doAssert count == 0, $count
 
-  var event0 = initTimerEvent(() => inc count0)
-  var event1a = initTimerEvent(proc() = inc count1)
-  var event1b = initTimerEvent(proc() = inc count1)
 
-  var s = initTimerWheel()
-  discard s.setTimer(event1a, 16)
-  discard s.setTimer(event1b, 16)
-  s.advance(1)
-  discard s.setTimer(event0, 15)
-  s.advance(14)
-  doAssert count0 == 0
-  doAssert count1 == 0
-  doAssert s.currentTime == 15
+# block:
+#   var t = initTimer(100)
+#   var count = 0
+#   var event0 = initTimerEvent(proc() = 
+#     inc count)
 
-  s.advance(2)
 
-  doAssert count0 == 1
-  doAssert count1 == 2
+#   var event1 = initTimerEvent(proc() = echo "first")
+#   var event2 = initTimerEvent(proc() = echo "second")
 
-  doAssert s.currentTime == 17
+#   discard t.add(event1, 10)
+#   discard t.add(event2, 1)
 
-block:
-  var 
-    count0 = 0
-    event0 = initTimerEvent(() => inc count0)
-    s = initTimerWheel()
+#   poll(t, 100)
+#   discard t.add(event0, 5)
 
-  discard s.setTimer(event0, 786)
-  discard s.setTimer(event0, 8888)
-  discard s.setTimer(event0, 8888)
-  discard s.setTimer(event0, 7777)
-  discard s.setTimer(event0, 63300)
-  s.advance(456)
-  s.advance(400)
-  doAssert count0 == 1
-  s.advance(9000)
-  doAssert count0 == 4
-  s.advance(60000)
-  doAssert count0 == 5
+#   discard t.add(event1, 9)
+#   echo t
+#   poll(t, 1000)
+#   doAssert count == 1, $count
+#   discard t.add(event0, 2)
+
+#   poll(t, 200)
+#   doAssert count == 2, $count
+
+# block:
+#   var t = initTimer(10)
+#   var count = 0
+#   var event0 = initTimerEvent(proc() = 
+#     inc count)
+
+
+#   var event1 = initTimerEvent(proc() = echo "first")
+#   var event2 = initTimerEvent(proc() = echo "second")
+
+#   var a = t.add(event1, 20)
+#   var b = t.add(event2, 15)
+
+#   echo t.wheel.slotsToString(1)
+#   echo t
+#   # t.cancel(b)
+#   poll(t, 100)
+#   poll(t, 30)
+#   echo t
+#   echo t.wheel.slotsToString(1)
+#   t.cancel(a)
+#   echo t
+#   echo t.wheel.slotsToString(0)
+#   poll(t, 200)
+#   echo t
+#   echo t.wheel.slotsToString(1)
+
+# block:
+#   var t = initTimer(1)
+#   var count = 0
+#   var event0 = initTimerEvent(proc() = 
+#     inc count)
+
+
+#   var event1 = initTimerEvent(proc() = echo "first")
+#   var event2 = initTimerEvent(proc() = echo "second")
+
+#   discard t.add(event1, 2, -1)
+#   while true:
+#     echo t
+#     # echo t.wheel.slotsToString(0)
+#     poll(t, 2)
+
+
+
+# echo t
+# echo t.wheel.slotsToString(0)
+# while t.wheel.taskCounter != 0:
+#   poll(t, 1000)
+#   echo t
+
+# echo t

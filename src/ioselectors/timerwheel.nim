@@ -159,7 +159,8 @@ proc execute*(s: var TimerWheel, t: TimerEventNode) =
     if t.value.repeatTimes < 0:
       setTimer(s, t, t.value.timeout, -1)
     elif t.value.repeatTimes >= 1:
-      setTimer(s, t, t.value.timeout, t.value.repeatTimes - 1)
+      dec t.value.repeatTimes
+      setTimer(s, t, t.value.timeout, t.value.repeatTimes)
 
 proc degrade*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel] - 1
