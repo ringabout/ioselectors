@@ -32,8 +32,6 @@ block:
 
   for i in 0 ..< 10:
     t.poll(1)
-    # echo t.wheel.slotsToString(0)
-    # echo t
   doAssert count == 18, $count
 
 

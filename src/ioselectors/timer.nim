@@ -65,7 +65,6 @@ proc update*(s: var Timer, step: Tick) =
   for i in 0 ..< step:
     let idx = s.wheel.now[0]
 
-
     s.wheel.now[0] = (idx + 1) and mask
 
     var hlevel = 0
