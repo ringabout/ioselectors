@@ -48,6 +48,8 @@ block:
 
   let n1 = t.add(event0, 15)
   t.cancel(n1)
+  # cancel multi times
+  t.cancel(n1)
   t.poll(16)
   doAssert count == 0
 

@@ -77,9 +77,30 @@ proc append*(L: TimerEventList, ev: TimerEventNode) =
   L.data.append(ev)
   inc L.count
 
-proc remove*(L: TimerEventList, ev: TimerEventNode) =
-  L.data.remove(ev)
-  dec L.count
+
+proc internalRemove*[T](L: var DoublyLinkedList[T], n: DoublyLinkedNode[T]): bool =
+  result = false
+
+  if n == L.tail: 
+    L.tail = n.prev
+    result = true
+
+  if n == L.head: 
+    L.head = n.next
+    result = true
+
+  if n.next != nil: 
+    n.next.prev = n.prev
+    result = true
+
+  if n.prev != nil: 
+    n.prev.next = n.next
+    result = true
+
+proc remove*(L: TimerEventList, ev: TimerEventNode): bool =
+  result = L.data.internalRemove(ev)
+  if result:
+    dec L.count
 
 iterator mitems*(L: TimerEventList): var TimerEvent =
   for item in L.data.mitems:
@@ -149,8 +170,8 @@ proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
       (s.now[level] + (event.timeout div s.duration[level - 1]) - 1) and mask
 
 
-  s.slots[level][scheduleAt].remove(eventNode)
-  dec s.taskCounter
+  if s.slots[level][scheduleAt].remove(eventNode):
+    dec s.taskCounter
 
 proc execute*(s: var TimerWheel, t: TimerEventNode) =
   if t.value.cb != nil:
@@ -167,7 +188,7 @@ proc degrade*(s: var TimerWheel, hlevel: Tick) =
 
   if idx >= 0:
     for node in s.slots[hlevel][idx].nodes:
-      s.slots[hlevel][idx].remove(node)
+      discard s.slots[hlevel][idx].remove(node)
       if node.value.finishAt <= s.currentTime:
         s.execute(node)
       else:
