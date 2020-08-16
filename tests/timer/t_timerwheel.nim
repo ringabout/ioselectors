@@ -167,3 +167,31 @@ block:
   doAssert count0 == 4
   s.advance(60000)
   doAssert count0 == 5
+
+block:
+  var 
+    count0 = 0
+    event0 = initTimerEvent(() => inc count0)
+    s = initTimerWheel()
+
+  let n0 = s.setTimer(event0, 786)
+  let n1 = s.setTimer(event0, 8888)
+  let n2 = s.setTimer(event0, 8888)
+  let n3 = s.setTimer(event0, 7777)
+  let n4 = s.setTimer(event0, 63300)
+  s.cancel(n0)
+  s.cancel(n1)
+  s.cancel(n2)
+  s.advance(456)
+  s.advance(400)
+  doAssert count0 == 0
+  s.cancel(n3)
+  s.advance(9000)
+  doAssert count0 == 0
+  echo s.slotsToString(2)
+  echo s.slotsToString(3)
+
+  s.cancel(n4)
+  echo s
+  s.advance(60000)
+  doAssert count0 == 0

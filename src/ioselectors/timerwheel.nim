@@ -23,6 +23,7 @@ type
   TimerEvent* = object
     finishAt*: Tick
     timeout*: Tick
+    now*: Tick
     repeatTimes*: int
     cb*: Callback
     count*: Tick
@@ -114,8 +115,7 @@ iterator nodes*(L: TimerEventList): TimerEventNode =
   for item in L.data.nodes:
     yield item
 
-proc setTimer*(s: var TimerWheel, event: TimerEventNode, 
-               timeout: Tick) =
+proc setTimer*(s: var TimerWheel, event: TimerEventNode) =
   ## Returns the number of TimerEvent in TimerEventList.
   if event.value.repeatTimes == 0:
     return
@@ -123,22 +123,21 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode,
   # mod (2 ^ n - 1)
   var level = 0
   # decide which level
-  while timeout >= s.duration[level]:
+  while event.value.timeout >= s.duration[level]:
     inc level
 
     if level >= numLevels:
       doAssert false, "Number is too large "
 
-  event.value.timeout = timeout
-  event.value.finishAt = s.currentTime + timeout
+  event.value.finishAt = s.currentTime + event.value.timeout
 
   let scheduleAt = 
     if level == 0:
       event.value.finishAt and mask
     else:
-      (s.now[level] + (timeout div s.duration[level - 1]) - 1) and mask
+      (s.now[level] + (event.value.timeout div s.duration[level - 1]) - 1) and mask
 
-
+  event.value.now = s.now[level]
   event.value.count = s.slots[level][scheduleAt].count
 
   s.slots[level][scheduleAt].append event
@@ -148,8 +147,9 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
                timeout: Tick, repeatTimes: int = 1): TimerEventNode =
   ## Returns the number of TimerEvent in TimerEventList.
   event.repeatTimes = repeatTimes
+  event.timeout = timeout
   result = newDoublyLinkedNode(event)
-  s.setTimer(result, timeout)
+  s.setTimer(result)
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
   # mod (2 ^ n - 1)
@@ -167,8 +167,7 @@ proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
     if level == 0:
       event.finishAt and mask
     else:
-      (s.now[level] + (event.timeout div s.duration[level - 1]) - 1) and mask
-
+      (event.now + (event.timeout div s.duration[level - 1]) - 1) and mask
 
   if s.slots[level][scheduleAt].remove(eventNode):
     dec s.taskCounter
@@ -178,10 +177,10 @@ proc execute*(s: var TimerWheel, t: TimerEventNode) =
     t.value.cb()
 
     if t.value.repeatTimes < 0:
-      setTimer(s, t, t.value.timeout)
+      setTimer(s, t)
     elif t.value.repeatTimes >= 1:
       dec t.value.repeatTimes
-      setTimer(s, t, t.value.timeout)
+      setTimer(s, t)
 
 proc degrade*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel] - 1
@@ -192,7 +191,8 @@ proc degrade*(s: var TimerWheel, hlevel: Tick) =
       if node.value.finishAt <= s.currentTime:
         s.execute(node)
       else:
-        s.setTimer(node, node.value.finishAt - s.currentTime)
+        node.value.timeout = node.value.finishAt - s.currentTime
+        s.setTimer(node)
       dec s.taskCounter
 
 proc advance*(s: var TimerWheel, step: Tick) =
