@@ -188,10 +188,8 @@ block:
   s.cancel(n3)
   s.advance(9000)
   doAssert count0 == 0
-  echo s.slotsToString(2)
-  echo s.slotsToString(3)
+
 
   s.cancel(n4)
-  echo s
   s.advance(60000)
   doAssert count0 == 0
