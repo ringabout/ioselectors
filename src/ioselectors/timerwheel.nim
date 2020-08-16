@@ -23,7 +23,8 @@ type
   TimerEvent* = object
     finishAt*: Tick
     timeout*: Tick
-    now*: Tick
+    level*: uint8
+    scheduleAt*: uint8
     repeatTimes*: int
     cb*: Callback
     count*: Tick
@@ -121,7 +122,7 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode) =
     return
 
   # mod (2 ^ n - 1)
-  var level = 0
+  var level = 0'u8
   # decide which level
   while event.value.timeout >= s.duration[level]:
     inc level
@@ -137,7 +138,8 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode) =
     else:
       (s.now[level] + (event.value.timeout div s.duration[level - 1]) - 1) and mask
 
-  event.value.now = s.now[level]
+  event.value.level = level
+  event.value.scheduleAt = scheduleAt.uint8
   event.value.count = s.slots[level][scheduleAt].count
 
   s.slots[level][scheduleAt].append event
@@ -153,23 +155,8 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
   # mod (2 ^ n - 1)
-  var level = 0
 
-  let event = eventNode.value
-  # decide which level
-  while event.timeout >= s.duration[level]:
-    inc level
-
-    if level >= numLevels:
-      doAssert false, "Number is too large "
-
-  let scheduleAt = 
-    if level == 0:
-      event.finishAt and mask
-    else:
-      (event.now + (event.timeout div s.duration[level - 1]) - 1) and mask
-
-  if s.slots[level][scheduleAt].remove(eventNode):
+  if s.slots[eventNode.value.level][eventNode.value.scheduleAt].remove(eventNode):
     dec s.taskCounter
 
 proc execute*(s: var TimerWheel, t: TimerEventNode) =
