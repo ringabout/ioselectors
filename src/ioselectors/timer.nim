@@ -31,6 +31,7 @@ proc initTimer*(interval: Tick = 100): Timer =
   result.interval = interval
 
 proc add*(timer: var Timer, event: TimerEventNode) =
+
   if event != nil:
     timer.wheel.setTimer(event)
     let event = event.value
@@ -63,6 +64,7 @@ proc execute*(s: var Timer, t: TimerEventNode) =
 proc update*(s: var Timer, step: Tick) =
   for i in 0 ..< step:
     let idx = s.wheel.now[0]
+
 
     s.wheel.now[0] = (idx + 1) and mask
 

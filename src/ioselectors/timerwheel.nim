@@ -23,7 +23,6 @@ type
   TimerEvent* = object
     finishAt*: Tick
     timeout*: Tick
-    level*: uint8
     scheduleAt*: uint8
     repeatTimes*: int
     cb*: Callback
@@ -57,7 +56,7 @@ proc initTimerEvent*(cb: Callback): TimerEvent =
   TimerEvent(cb: cb)
 
 proc `$`*(t: TimerEvent): string =
-  $(t.finishAt, )
+  $(t.finishAt, t.scheduleAt)
 
 proc slotsToString*(t: TimerWheel, level: Tick): string =
   result = "["
@@ -78,7 +77,6 @@ proc clear*(L: TimerEventList) =
 proc append*(L: TimerEventList, ev: TimerEventNode) =
   L.data.append(ev)
   inc L.count
-
 
 proc internalRemove*[T](L: var DoublyLinkedList[T], n: DoublyLinkedNode[T]): bool =
   result = false
@@ -138,7 +136,6 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode) =
     else:
       (s.now[level] + (event.value.timeout div s.duration[level - 1]) - 1) and mask
 
-  event.value.level = level
   event.value.scheduleAt = scheduleAt.uint8
   event.value.first = not s.slots[level][scheduleAt].count.bool
 
@@ -155,8 +152,16 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
   # mod (2 ^ n - 1)
+  var level = 0'u8
+  # decide which level
+  while eventNode.value.timeout >= s.duration[level]:
+    inc level
 
-  if s.slots[eventNode.value.level][eventNode.value.scheduleAt].remove(eventNode):
+    if level >= numLevels.uint8:
+      doAssert false, "Number is too large "
+
+
+  if s.slots[level][eventNode.value.scheduleAt].remove(eventNode):
     dec s.taskCounter
 
 proc execute*(s: var TimerWheel, t: TimerEventNode) =
@@ -216,7 +221,6 @@ proc update*(s: var TimerWheel, step: Tick) =
       degrade(s, hlevel)
 
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
-
 
   let idx = s.now[0]
   for node in s.slots[0][idx].nodes:

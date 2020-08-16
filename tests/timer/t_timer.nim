@@ -11,7 +11,7 @@ block:
   discard t.add(event0, 10)
   doAssert count == 0
   t.poll(10)
-  doAssert count == 1
+  doAssert count == 1, $count
 
   # Repeat five times
   discard t.add(event0, 10, 5)
