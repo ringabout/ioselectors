@@ -27,7 +27,7 @@ type
     scheduleAt*: uint8
     repeatTimes*: int
     cb*: Callback
-    count*: Tick
+    first*: bool
 
   TimerEventNode* = DoublyLinkedNode[TimerEvent]
 
@@ -140,7 +140,7 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode) =
 
   event.value.level = level
   event.value.scheduleAt = scheduleAt.uint8
-  event.value.count = s.slots[level][scheduleAt].count
+  event.value.first = not s.slots[level][scheduleAt].count.bool
 
   s.slots[level][scheduleAt].append event
   inc s.taskCounter

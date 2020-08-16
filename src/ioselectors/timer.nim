@@ -31,12 +31,10 @@ proc initTimer*(interval: Tick = 100): Timer =
   result.interval = interval
 
 proc add*(timer: var Timer, event: TimerEventNode) =
-
-  timer.wheel.setTimer(event)
-
   if event != nil:
+    timer.wheel.setTimer(event)
     let event = event.value
-    if event.repeatTimes != 0 and event.count == 0:
+    if event.repeatTimes != 0 and event.first:
       timer.queue.push(initTimerItem(getMonoTime() + initDuration(
                        milliseconds = event.timeout * timer.interval),
                        timer.wheel.currentTime + event.timeout))
@@ -65,7 +63,6 @@ proc execute*(s: var Timer, t: TimerEventNode) =
 proc update*(s: var Timer, step: Tick) =
   for i in 0 ..< step:
     let idx = s.wheel.now[0]
-
 
     s.wheel.now[0] = (idx + 1) and mask
 
