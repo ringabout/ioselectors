@@ -54,7 +54,7 @@ block:
   t.poll(16)
   doAssert count == 0
 
-  let n2 = t.add(event0, 28)
+  let n2 = t.add(event0, 98)
   discard t.add(event1, 12)
   t.poll(13)
 
