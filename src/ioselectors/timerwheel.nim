@@ -127,7 +127,7 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode) =
   while event.value.timeout >= s.duration[level]:
     inc level
 
-    if level >= numLevels:
+    if level >= numLevels.uint8:
       doAssert false, "Number is too large "
 
   event.value.finishAt = s.currentTime + event.value.timeout
