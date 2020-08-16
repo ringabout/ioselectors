@@ -30,10 +30,9 @@ proc initTimer*(interval: Tick = 100): Timer =
   result.start = getMonoTime()
   result.interval = interval
 
-proc add*(timer: var Timer, event: TimerEventNode, timeout: Tick, 
-          repeatTimes: int = 1) =
+proc add*(timer: var Timer, event: TimerEventNode, timeout: Tick) =
 
-  timer.wheel.setTimer(event, timeout, repeatTimes)
+  timer.wheel.setTimer(event, timeout)
 
   if event != nil:
     let event = event.value
@@ -45,8 +44,9 @@ proc add*(timer: var Timer, event: TimerEventNode, timeout: Tick,
 proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick, 
           repeatTimes: int = 1): TimerEventNode =
 
+  event.repeatTimes = repeatTimes
   result = newDoublyLinkedNode(event)
-  timer.add(result, timeout, repeatTimes)
+  timer.add(result, timeout)
 
 proc cancel*(s: var Timer, eventNode: TimerEventNode) =
   s.wheel.cancel(eventNode)
@@ -56,10 +56,10 @@ proc execute*(s: var Timer, t: TimerEventNode) =
     t.value.cb()
 
     if t.value.repeatTimes < 0:
-      add(s, t, t.value.timeout, -1)
+      add(s, t, t.value.timeout)
     elif t.value.repeatTimes >= 1:
       dec t.value.repeatTimes
-      add(s, t, t.value.timeout, t.value.repeatTimes)
+      add(s, t, t.value.timeout)
 
 proc update*(s: var Timer, step: Tick) =
   for i in 0 ..< step:

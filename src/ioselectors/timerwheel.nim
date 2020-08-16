@@ -94,9 +94,9 @@ iterator nodes*(L: TimerEventList): TimerEventNode =
     yield item
 
 proc setTimer*(s: var TimerWheel, event: TimerEventNode, 
-               timeout: Tick, repeatTimes: int = 1) =
+               timeout: Tick) =
   ## Returns the number of TimerEvent in TimerEventList.
-  if repeatTimes == 0:
+  if event.value.repeatTimes == 0:
     return
 
   # mod (2 ^ n - 1)
@@ -108,7 +108,6 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode,
     if level >= numLevels:
       doAssert false, "Number is too large "
 
-  event.value.repeatTimes = repeatTimes
   event.value.timeout = timeout
   event.value.finishAt = s.currentTime + timeout
 
@@ -127,8 +126,9 @@ proc setTimer*(s: var TimerWheel, event: TimerEventNode,
 proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
                timeout: Tick, repeatTimes: int = 1): TimerEventNode =
   ## Returns the number of TimerEvent in TimerEventList.
+  event.repeatTimes = repeatTimes
   result = newDoublyLinkedNode(event)
-  s.setTimer(result, timeout, repeatTimes)
+  s.setTimer(result, timeout)
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
   # mod (2 ^ n - 1)
@@ -157,10 +157,10 @@ proc execute*(s: var TimerWheel, t: TimerEventNode) =
     t.value.cb()
 
     if t.value.repeatTimes < 0:
-      setTimer(s, t, t.value.timeout, -1)
+      setTimer(s, t, t.value.timeout)
     elif t.value.repeatTimes >= 1:
       dec t.value.repeatTimes
-      setTimer(s, t, t.value.timeout, t.value.repeatTimes)
+      setTimer(s, t, t.value.timeout)
 
 proc degrade*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel] - 1
