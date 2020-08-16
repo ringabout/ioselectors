@@ -70,7 +70,6 @@ block:
   doAssert count == 0, $count
 
 
-
 block:
   var t = initTimer(10)
   var count = 0
@@ -82,8 +81,8 @@ block:
 
 
   t.cancel(b)
-  poll(t, 40)
-  poll(t, 10)
+  poll(t, 4)
+  poll(t, 1)
   t.cancel(a)
   poll(t, 200)
   doAssert count == 0, $count
