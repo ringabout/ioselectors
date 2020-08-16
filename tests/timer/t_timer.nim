@@ -82,8 +82,8 @@ block:
 
 
   t.cancel(b)
-  poll(t, 100)
-  poll(t, 30)
+  poll(t, 40)
+  poll(t, 10)
   t.cancel(a)
   poll(t, 200)
   doAssert count == 0, $count
