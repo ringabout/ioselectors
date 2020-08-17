@@ -65,9 +65,6 @@ proc slotsToString*(t: TimerWheel, level: Tick): string =
   result.add $(slots[^1][])
   result.add "]"
 
-proc isEmpty*(L: TimerEventList): bool =
-  L.data.head == nil and L.data.tail == nil
-
 proc clear*(L: TimerEventList) =
   L.data.head = nil
   L.data.tail = nil
@@ -115,6 +112,7 @@ iterator nodes*(L: TimerEventList): TimerEventNode =
 
 proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
   ## Returns the number of TimerEvent in TimerEventList.
+  
   if eventNode.value.repeatTimes == 0:
     return
 
@@ -209,6 +207,13 @@ proc advance*(s: var TimerWheel, step: Tick) =
       degrade(s, hlevel)
 
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
+
+  let idx = s.now[0]
+  for node in s.slots[0][idx].nodes:
+    s.execute(node)
+    dec s.taskCounter
+
+  s.slots[0][idx].clear()
 
 proc update*(s: var TimerWheel, step: Tick) =
   for i in 0 ..< step:

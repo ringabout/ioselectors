@@ -1,3 +1,14 @@
+discard """
+  cmd:      "nim c -r --styleCheck:hint --panics:on $options $file"
+  matrix:   "--gc:arc; -d:widthBits:8 -d:total:32"
+  targets:  "c"
+  nimout:   ""
+  action:   "run"
+  exitcode: 0
+  timeout:  60.0
+"""
+
+
 include ../../src/ioselectors/timerwheel
 import sugar
 
@@ -16,13 +27,8 @@ block:
   discard s.setTimer(event0, 5)
   s.advance(4)
   doAssert count == 0
-  s.advance(2)
+  s.advance(1)
   doAssert count == 1
-
-
-  # discard s.setTimer(event0, 5)
-  # event0.cancel()
-  # s.advance(6)
 
 
   discard s.setTimer(event1, 3)
@@ -39,7 +45,7 @@ block:
   s.advance(4)
   doAssert s.taskCounter == 4
   s.advance(8)
-  doAssert s.taskCounter == 3
+  doAssert s.taskCounter == 2, $s.taskCounter
 
 block:
   var s = initTimerWheel()
@@ -54,14 +60,14 @@ block:
 
   discard s.setTimer(event0, 5, 1)
   doAssert s.isActive
-  s.advance(6)
+  s.advance(5)
   doAssert count == 1
 
   s.advance(256)
   doAssert count == 1
 
   discard s.setTimer(event0, 5)
-  s.advance(6)
+  s.advance(5)
   doAssert count == 2
 
   s.advance(250)
@@ -74,7 +80,7 @@ block:
 
   s.advance(4)
   doAssert count == 3
-  s.advance(2)
+  s.advance(1)
   doAssert count == 4
 
 
@@ -89,19 +95,19 @@ block:
   discard s.setTimer(event0, 16)
   s.advance(15)
   doAssert count == 0
-  s.advance(2)
-  doAssert count == 1
+  s.advance(1)
+  doAssert count == 1, $count
 
   discard s.setTimer(event0, 17)
   s.advance(16)
   doAssert count == 1
-  s.advance(2)
+  s.advance(1)
   doAssert count == 2
 
   discard s.setTimer(event0, 16 * 4 - 1)
   s.advance(16 * 4 - 2)
   doAssert count == 2
-  s.advance(2)
+  s.advance(1)
   doAssert count == 3
 
 
@@ -109,7 +115,7 @@ block:
     discard s.setTimer(event0, 16 * 4 + 5)
     s.advance(16 * 4 + 4)
     doAssert count == 3 + i
-    s.advance(2)
+    s.advance(1)
     doAssert count == 4 + i
 
 
@@ -142,12 +148,12 @@ block:
   doAssert count1 == 0
   doAssert s.currentTime == 15
 
-  s.advance(2)
+  s.advance(1)
 
   doAssert count0 == 1
   doAssert count1 == 2
 
-  doAssert s.currentTime == 17
+  doAssert s.currentTime == 16
 
 block:
   var 
@@ -189,7 +195,32 @@ block:
   s.advance(9000)
   doAssert count0 == 0
 
-
   s.cancel(n4)
   s.advance(60000)
   doAssert count0 == 0
+
+block:
+  var 
+    count0 = 0
+    event0 = initTimerEvent(() => inc count0)
+    s = initTimerWheel()
+
+  discard s.setTimer(event0, 10, -1)
+
+  for i in 0 ..< 100:
+    s.update(10)
+
+  doAssert count0 == 100
+
+block:
+  var 
+    count0 = 0
+    event0 = initTimerEvent(() => inc count0)
+    s = initTimerWheel()
+
+  discard s.setTimer(event0, 10, -1)
+
+  for i in 0 ..< 100:
+    s.advance(10)
+
+  doAssert count0 == 100, $count0

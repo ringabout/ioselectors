@@ -1,10 +1,11 @@
 import timerwheel
 import std/monotimes
 import times, heapqueue, options
-import os
+import os, lists
 
-# TODO 
-import lists
+
+export lists, options
+
 
 type
   TimerItem* = object
