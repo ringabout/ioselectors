@@ -188,12 +188,14 @@ proc degrade*(s: var TimerWheel, hlevel: Tick) =
         s.setTimer(node)
       dec s.taskCounter
 
-proc advance*(s: var TimerWheel, step: Tick) =
+template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
   for i in 0 ..< step:
     let idx = s.now[0]
-    for node in s.slots[0][idx].nodes:
-      s.execute(node)
-      dec s.taskCounter
+
+    when all:
+      for node in s.slots[0][idx].nodes:
+        s.execute(node)
+        dec s.taskCounter
 
     s.slots[0][idx].clear()
 
@@ -208,31 +210,16 @@ proc advance*(s: var TimerWheel, step: Tick) =
 
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
 
-  let idx = s.now[0]
-  for node in s.slots[0][idx].nodes:
-    s.execute(node)
-    dec s.taskCounter
+  when tail:
+    let idx = s.now[0]
+    for node in s.slots[0][idx].nodes:
+      s.execute(node)
+      dec s.taskCounter
 
-  s.slots[0][idx].clear()
+    s.slots[0][idx].clear()
+
+proc advance*(s: var TimerWheel, step: Tick) =
+  run(s, step, true, true)
 
 proc update*(s: var TimerWheel, step: Tick) =
-  for i in 0 ..< step:
-    let idx = s.now[0]
-
-    s.now[0] = (idx + 1) and mask
-
-    var hlevel = 0
-
-    while s.now[hlevel] == 0 and hlevel < numLevels - 1:
-      inc hlevel
-      s.now[hlevel] = (s.now[hlevel] + 1) and mask
-      degrade(s, hlevel)
-
-    s.currentTime = (s.currentTime + 1) and (totalBits - 1)
-
-  let idx = s.now[0]
-  for node in s.slots[0][idx].nodes:
-    s.execute(node)
-    dec s.taskCounter
-
-  s.slots[0][idx].clear()
+  run(s, step, false, true)

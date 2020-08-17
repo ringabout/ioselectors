@@ -63,21 +63,9 @@ proc execute*(s: var Timer, t: TimerEventNode) =
       add(s, t)
 
 proc update*(s: var Timer, step: Tick) =
-  for i in 0 ..< step:
-    let idx = s.wheel.now[0]
+  run(s.wheel, step, false, false)
 
-    s.wheel.now[0] = (idx + 1) and mask
-
-    var hlevel = 0
-
-    while s.wheel.now[hlevel] == 0 and hlevel < numLevels - 1:
-      inc hlevel
-      s.wheel.now[hlevel] = (s.wheel.now[hlevel] + 1) and mask
-      degrade(s.wheel, hlevel)
-
-    s.wheel.currentTime = (s.wheel.currentTime + 1) and (totalBits - 1)
-
-
+  # Uses our own executor.
   let idx = s.wheel.now[0]
   for node in s.wheel.slots[0][idx].nodes:
     s.execute(node)
