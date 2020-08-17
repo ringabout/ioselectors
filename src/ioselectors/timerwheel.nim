@@ -110,28 +110,32 @@ iterator nodes*(L: TimerEventList): TimerEventNode =
   for item in L.data.nodes:
     yield item
 
-proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
-  ## Returns the number of TimerEvent in TimerEventList.
-  
-  if eventNode.value.repeatTimes == 0:
-    return
+template scheduleWhere(
+  s: var TimerWheel, eventNode: TimerEventNode
+): tuple[level: int, scheduleAt: int] =
 
   # mod (2 ^ n - 1)
-  var level = 0'u8
+  var level = 0
   # decide which level
   while eventNode.value.timeout >= s.duration[level]:
     inc level
 
-    if level >= numLevels.uint8:
+    if level >= numLevels:
       doAssert false, "Number is too large "
+
+  if level == 0:
+    (level, eventNode.value.finishAt and mask)
+  else:
+    (level, (eventNode.value.finishAt div s.duration[level - 1] - 1) and mask)
+
+proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
+  ## Returns the number of TimerEvent in TimerEventList.
+  if eventNode.value.repeatTimes == 0:
+    return
 
   eventNode.value.finishAt = s.currentTime + eventNode.value.timeout
 
-  let scheduleAt = 
-    if level == 0:
-      eventNode.value.finishAt and mask
-    else:
-      (eventNode.value.finishAt div s.duration[level - 1] - 1) and mask
+  let (level, scheduleAt) = scheduleWhere(s, eventNode)
 
   eventNode.value.first = not s.slots[level][scheduleAt].count.bool
 
@@ -147,20 +151,7 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
   s.setTimer(result)
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
-  # mod (2 ^ n - 1)
-  var level = 0'u8
-  # decide which level
-  while eventNode.value.timeout >= s.duration[level]:
-    inc level
-
-    if level >= numLevels.uint8:
-      doAssert false, "Number is too large "
-
-  let scheduleAt = 
-    if level == 0:
-      eventNode.value.finishAt and mask
-    else:
-      (eventNode.value.finishAt div s.duration[level - 1] - 1) and mask
+  let (level, scheduleAt) = scheduleWhere(s, eventNode)
 
   if s.slots[level][scheduleAt].remove(eventNode):
     dec s.taskCounter
