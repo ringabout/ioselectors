@@ -498,3 +498,19 @@ block:
 
     s.update(65535)
     doAssert count0 == 1, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 12, 5)
+    discard s.setTimer(event0, 70, -1)
+
+    for i in 1 .. 5:
+      s.update(12)
+      doAssert count0 == i
+
+    s.update(10)
+    doAssert count0 == 6
