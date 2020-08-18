@@ -25,10 +25,12 @@ block:
 
 
   discard s.setTimer(event0, 5)
+
+
   s.advance(4)
   doAssert count == 0
   s.advance(1)
-  doAssert count == 1
+  doAssert count == 1, $count
 
 
   discard s.setTimer(event1, 3)
@@ -39,13 +41,17 @@ block:
   discard s.setTimer(event2, 29)
   discard s.setTimer(event2, 37)
   discard s.setTimer(event2, 62)
-  doAssert s.taskCounter == 8
+
+  doAssert s.taskCounter == 8, $s.taskCounter
+
   s.advance(17)
-  doAssert s.taskCounter == 6
+
+  doAssert s.taskCounter == 6, $s.taskCounter
   s.advance(4)
-  doAssert s.taskCounter == 4
+  doAssert s.taskCounter == 4, $s.taskCounter
   s.advance(8)
   doAssert s.taskCounter == 2, $s.taskCounter
+
 
 block:
   var s = initTimerWheel()
@@ -102,7 +108,7 @@ block:
   s.advance(16)
   doAssert count == 1
   s.advance(1)
-  doAssert count == 2
+  doAssert count == 2, $count
 
   discard s.setTimer(event0, 16 * 4 - 1)
   s.advance(16 * 4 - 2)
@@ -210,7 +216,7 @@ block:
   for i in 0 ..< 100:
     s.update(10)
 
-  doAssert count0 == 100
+  doAssert count0 == 100, $count0
 
 block:
   var 
@@ -224,3 +230,185 @@ block:
     s.advance(10)
 
   doAssert count0 == 100, $count0
+
+block:
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 65534, -1)
+
+    s.advance(70000)
+    doAssert count0 == 1, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 65534, -1)
+
+    s.advance(65534)
+    doAssert count0 == 1, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 65534, -1)
+
+    s.advance(65533)
+    doAssert count0 == 0, $count0
+  
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 65534, -1)
+
+    s.advance(65535)
+    doAssert count0 == 1, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 65534, -1)
+
+    s.advance(65535)
+    doAssert count0 == 1, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 4098, -1)
+
+    s.advance(4098)
+    doAssert count0 == 1, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    discard s.setTimer(event0, 4096, -1)
+
+    s.advance(4096)
+    doAssert count0 == 1, $count0
+    s.advance(4097)
+    doAssert count0 == 2, $count0
+    s.advance(4095)
+    doAssert count0 == 3, $count0
+    s.advance(4095)
+    doAssert count0 == 3, $count0
+    s.advance(1)
+    doAssert count0 == 4, $count0
+
+    discard s.setTimer(event0, 12, 3)
+    for i in 0 ..< 3:
+      s.update(12)
+    doAssert count0 == 7, $count0
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+
+    discard s.setTimer(event0, 31)
+    # s.advance(30)
+    # doAssert count0 == 0, $count0
+    # s.advance(1)
+    # echo s
+    # doAssert count0 == 1, $count0
+
+    s.update(31)
+    doAssert count0 == 1
+
+
+  block:
+    var 
+      count0 = 0
+      event0 = initTimerEvent(() => inc count0)
+      s = initTimerWheel()
+
+    for i in 1 .. 100:
+      discard s.setTimer(event0, i)
+
+    # s.advance(31)
+    s.advance(50)
+    doAssert count0 == 50, $count0
+
+    for i in 1 .. 50:
+      s.update(1)
+
+    doAssert count0 == 100, $count0
+
+  # block:
+  #   var 
+  #     count0 = 0
+  #     event0 = initTimerEvent(() => inc count0)
+  #     s = initTimerWheel()
+
+  #   for i in 1 .. 1000:
+  #     discard s.setTimer(event0, i)
+
+
+  #   s.advance(500)
+
+  #   # TODO This is wrong
+  #   doAssert count0 == 499, $count0
+
+  #   for i in 1 .. 500:
+  #     s.update(1)
+
+  #   doAssert count0 == 999, $count0
+
+# block:
+#   block:
+#     var 
+#       count0 = 0
+#       event0 = initTimerEvent(() => inc count0)
+#       s = initTimerWheel()
+
+#     discard s.setTimer(event0, 783)
+#     echo s
+#     echo s.slotsToString(2)
+#     echo s.slotsToString(1)
+#     echo s.slotsToString(0)
+#     echo "++++++++++++++++++++++++++++++++++++++++++++"
+#     s.advance(783)
+#     echo s
+#     echo s.slotsToString(2)
+#     echo s.slotsToString(1)
+#     echo s.slotsToString(0)
+
+#     echo count0
+
+
+  # block:
+  #   var 
+  #     count0 = 0
+  #     event0 = initTimerEvent(() => inc count0)
+  #     s = initTimerWheel()
+
+  #   discard s.setTimer(event0, 65535, -1)
+
+  #   echo s.slotsToString(numLevels - 1)
+
+  #   s.update(65535)
+  #   doAssert count0 == 1, $count0
