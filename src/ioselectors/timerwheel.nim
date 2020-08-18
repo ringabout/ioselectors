@@ -209,20 +209,24 @@ proc degrade*(s: var TimerWheel, hlevel: Tick) =
 
     dec s.taskCounter
 
+template clearAndExecute(s: var TimerWheel) =
+  let 
+    idx = s.now[0]
+    nodes = move s.slots[0][idx]
+
+  new s.slots[0][idx]
+
+  for node in nodes.nodes:
+    discard remove(nodes, node)
+    s.execute(node)
+    dec s.taskCounter
+
 template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
   for i in 0 ..< step:
     s.now[0] = (s.now[0] + 1) and mask
 
     when all:
-      let 
-        idx = s.now[0]
-        nodes = move s.slots[0][idx]
-      new s.slots[0][idx]
-
-      for node in nodes.nodes:
-        discard remove(nodes, node)
-        s.execute(node)
-        dec s.taskCounter
+      s.clearAndExecute()
 
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
 
@@ -233,16 +237,7 @@ template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
       degrade(s, hlevel)
 
   when tail:
-    let 
-      idx = s.now[0]
-      nodes = move s.slots[0][idx]
-
-    new s.slots[0][idx]
-
-    for node in nodes.nodes:
-      discard remove(nodes, node)
-      s.execute(node)
-      dec s.taskCounter
+    s.clearAndExecute()
 
 proc advance*(s: var TimerWheel, step: Tick) =
   run(s, step, true, true)
