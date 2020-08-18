@@ -123,7 +123,7 @@ template scheduleWhere(
     inc level
 
     if level >= numLevels:
-      doAssert false, "Number is too large "
+      doAssert false, "Number is too large!"
 
   if level == 0'u8:
     (level, uint8((s.now[0] + eventNode.value.timeout) and mask))
@@ -137,7 +137,6 @@ proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: 
   eventNode.value.level = level
   eventNode.value.scheduleAt = scheduleAt
   eventNode.value.first = not s.slots[level][scheduleAt].count.bool
-
 
   s.slots[level][scheduleAt].append eventNode
   inc s.taskCounter
@@ -163,6 +162,7 @@ proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
 proc setTimer*(s: var TimerWheel, event: var TimerEvent, 
                timeout: Tick, repeatTimes: int = 1): TimerEventNode =
   ## Returns the number of TimerEvent in TimerEventList.
+
   result = setupTimerEvent(s, event, timeout, repeatTimes)
   s.setTimer(result)
 
@@ -191,9 +191,10 @@ proc setDegradeTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
   s.setTimer(eventNode, level, scheduleAt)
 
 proc degrade*(s: var TimerWheel, hlevel: Tick) =
-  let idx = s.now[hlevel]
-
-  let nodes = move s.slots[hlevel][idx]
+  let 
+    idx = s.now[hlevel]
+    nodes = move s.slots[hlevel][idx]
+  
   new s.slots[hlevel][idx]
 
   s.now[hlevel] = (s.now[hlevel] + 1) and mask
@@ -213,8 +214,9 @@ template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
     s.now[0] = (s.now[0] + 1) and mask
 
     when all:
-      let idx = s.now[0]
-      let nodes = move s.slots[0][idx]
+      let 
+        idx = s.now[0]
+        nodes = move s.slots[0][idx]
       new s.slots[0][idx]
 
       for node in nodes.nodes:
@@ -222,8 +224,6 @@ template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
         s.execute(node)
         dec s.taskCounter
 
-    # s.slots[0][idx].clear()
-    # s.now[0] = (idx + 1) and mask
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
 
     var hlevel = 0
@@ -232,11 +232,11 @@ template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
       inc hlevel
       degrade(s, hlevel)
 
-
   when tail:
-    let idx = s.now[0]
+    let 
+      idx = s.now[0]
+      nodes = move s.slots[0][idx]
 
-    let nodes = move s.slots[0][idx]
     new s.slots[0][idx]
 
     for node in nodes.nodes:
