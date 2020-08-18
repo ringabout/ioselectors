@@ -24,6 +24,8 @@ type
     finishAt*: Tick
     timeout*: Tick
     originTimeout*: Tick
+    level*: uint8
+    scheduleAt*: uint8
     repeatTimes*: int
     cb*: Callback
     first*: bool
@@ -113,10 +115,9 @@ iterator nodes*(L: TimerEventList): TimerEventNode =
 
 template scheduleWhere(
   s: var TimerWheel, eventNode: TimerEventNode
-): tuple[level: int, scheduleAt: int] =
-
+): tuple[level: uint8, scheduleAt: uint8] =
   # mod (2 ^ n - 1)
-  var level = 0
+  var level = 0'u8
   # decide which level
   while eventNode.value.timeout >= s.duration[level]:
     inc level
@@ -124,17 +125,19 @@ template scheduleWhere(
     if level >= numLevels:
       doAssert false, "Number is too large "
 
-  # TODO This is wrong
-  if level == 0:
-    (level, eventNode.value.finishAt and mask)
+  if level == 0'u8:
+    (level, uint8((s.now[0] + eventNode.value.timeout) and mask))
   else:
-    (level, (eventNode.value.finishAt div s.duration[level - 1] - 1) and mask)
+    (level, uint8((s.now[level] + eventNode.value.timeout div s.duration[level - 1] - 1) and mask))
 
-proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: Tick) =
+proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: uint8) =
   if eventNode.value.repeatTimes == 0:
     return
 
+  eventNode.value.level = level
+  eventNode.value.scheduleAt = scheduleAt
   eventNode.value.first = not s.slots[level][scheduleAt].count.bool
+
 
   s.slots[level][scheduleAt].append eventNode
   inc s.taskCounter
@@ -164,7 +167,7 @@ proc setTimer*(s: var TimerWheel, event: var TimerEvent,
   s.setTimer(result)
 
 proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
-  let (level, scheduleAt) = scheduleWhere(s, eventNode)
+  let (level, scheduleAt) = (eventNode.value.level, eventNode.value.scheduleAt)
 
   if s.slots[level][scheduleAt].remove(eventNode):
     dec s.taskCounter
@@ -181,52 +184,46 @@ proc execute*(s: var TimerWheel, t: TimerEventNode) =
       updateTimerEventNode(s, t)
       setTimer(s, t)
 
+proc setDegradeTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
+  ## Returns the number of TimerEvent in TimerEventList.
+
+  let (level, scheduleAt) = scheduleWhere(s, eventNode)
+  s.setTimer(eventNode, level, scheduleAt)
+
 proc degrade*(s: var TimerWheel, hlevel: Tick) =
   let idx = s.now[hlevel]
 
   let nodes = move s.slots[hlevel][idx]
   new s.slots[hlevel][idx]
 
+  s.now[hlevel] = (s.now[hlevel] + 1) and mask
+
   for node in nodes.nodes:
-    # discard s.slots[hlevel][idx].remove(node)
+    discard remove(nodes, node)
     if node.value.finishAt <= s.currentTime:
       s.execute(node)
     else:
       node.value.timeout = (node.value.finishAt - s.currentTime)
-
-      # 16 -> 31
-      # run 15 -> get 16
-      var prevLevel = hlevel - 1
-      var flag = false
-
-      while prevLevel >= 0:
-        if node.value.timeout == s.duration[prevLevel]:
-          flag = true
-          break
-      
-        dec prevLevel
-
-      if flag:
-        s.setTimer(node, hlevel, s.now[hlevel] + 1)
-      else:
-        s.setTimer(node)
+      s.setDegradeTimer(node)
 
     dec s.taskCounter
-  
-  s.now[hlevel] = (s.now[hlevel] + 1) and mask
-
 
 template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
   for i in 0 ..< step:
-    let idx = s.now[0]
+    s.now[0] = (s.now[0] + 1) and mask
 
     when all:
-      for node in s.slots[0][idx].nodes:
+      let idx = s.now[0]
+      let nodes = move s.slots[0][idx]
+      new s.slots[0][idx]
+
+      for node in nodes.nodes:
+        discard remove(nodes, node)
         s.execute(node)
         dec s.taskCounter
 
-    s.slots[0][idx].clear()
-    s.now[0] = (idx + 1) and mask
+    # s.slots[0][idx].clear()
+    # s.now[0] = (idx + 1) and mask
     s.currentTime = (s.currentTime + 1) and (totalBits - 1)
 
     var hlevel = 0
@@ -238,11 +235,14 @@ template run*(s: var TimerWheel, step: Tick, all = true, tail = true) =
 
   when tail:
     let idx = s.now[0]
-    for node in s.slots[0][idx].nodes:
+
+    let nodes = move s.slots[0][idx]
+    new s.slots[0][idx]
+
+    for node in nodes.nodes:
+      discard remove(nodes, node)
       s.execute(node)
       dec s.taskCounter
-
-    s.slots[0][idx].clear()
 
 proc advance*(s: var TimerWheel, step: Tick) =
   run(s, step, true, true)
