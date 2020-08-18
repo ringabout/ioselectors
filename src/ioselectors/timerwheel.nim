@@ -122,7 +122,7 @@ template scheduleWhere(
   while eventNode.value.timeout >= s.duration[level]:
     inc level
 
-    if level >= numLevels:
+    if level >= uint8 numLevels:
       doAssert false, "Number is too large!"
 
   if level == 0'u8:
@@ -185,8 +185,6 @@ proc execute*(s: var TimerWheel, t: TimerEventNode) =
       setTimer(s, t)
 
 proc setDegradeTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
-  ## Returns the number of TimerEvent in TimerEventList.
-
   let (level, scheduleAt) = scheduleWhere(s, eventNode)
   s.setTimer(eventNode, level, scheduleAt)
 
