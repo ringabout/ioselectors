@@ -23,9 +23,9 @@ type
   TimerEvent* = object
     finishAt*: Tick
     originTimeout*: Tick # Supports repetitive events.
+    repeatTimes*: int    # Supports repetitive events.
     level*: uint8        # Supports cancellation.
     scheduleAt*: uint8   # Supports cancellation.
-    repeatTimes*: int    # Supports repetitive events.
     cb*: Callback
     first*: bool
 
