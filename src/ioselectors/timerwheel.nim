@@ -18,11 +18,14 @@ static:
 type
   Tick* = Natural
 
+  # TODO Unify Callback
+  # proc(args: pointer = nil)
+  # userData: pointer
   Callback* = proc() {.gcsafe.}
 
   TimerEvent* = object
     finishAt*: Tick
-    originTimeout*: Tick # Supports repetitive events.
+    timeout*: Tick # Supports repetitive events.
     repeatTimes*: int    # Supports repetitive events.
     level*: uint8        # Supports cancellation.
     scheduleAt*: uint8   # Supports cancellation.
@@ -30,7 +33,7 @@ type
 
   TimerEventNode* = DoublyLinkedNode[TimerEvent]
 
-  TimerEventList* = ref object
+  TimerEventList* = ref object ## TODO why ref?
     data*: DoublyLinkedList[TimerEvent]
     count*: Tick
 
@@ -56,7 +59,7 @@ proc initTimerEvent*(cb: Callback): TimerEvent =
   TimerEvent(cb: cb)
 
 proc `$`*(t: TimerEvent): string =
-  $(t.finishAt, t.originTimeout)
+  $(t.finishAt, t.timeout)
 
 proc slotsToString*(t: TimerWheel, level: Tick): string =
   result = "["
@@ -71,7 +74,7 @@ proc clear*(L: TimerEventList) =
   L.data.tail = nil
   L.count = 0
 
-proc append*(L: TimerEventList, ev: TimerEventNode) =
+proc append*(L: TimerEventList, ev: TimerEventNode) {.inline.} =
   L.data.append(ev)
   inc L.count
 
@@ -127,9 +130,9 @@ template scheduleWhere(
   if level == 0'u8:
     (level, uint8((s.now[0] + timeout) and mask))
   else:
-    (level, uint8((s.now[level] + timeout div s.duration[level - 1] - 1) and mask))
+    (level, uint8((s.now[level] + timeout shr (widthBits * level) - 1) and mask))
 
-proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: uint8) =
+proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: uint8) {.inline.} =
   if eventNode.value.repeatTimes == 0:
     return
 
@@ -143,11 +146,11 @@ template setupTimerEvent*(s: var TimerWheel, event: var TimerEvent,
                timeout: Tick, repeatTimes: int): TimerEventNode =
   event.repeatTimes = repeatTimes
   event.finishAt = s.currentTime + timeout
-  event.originTimeout = timeout
+  event.timeout = timeout
   newDoublyLinkedNode(event)
 
 template updateTimerEventNode*(s: var TimerWheel, eventNode: TimerEventNode) =
-  t.value.finishAt = s.currentTime + t.value.originTimeout
+  t.value.finishAt = s.currentTime + t.value.timeout
 
 proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
   ## Returns the number of TimerEvent in TimerEventList.
