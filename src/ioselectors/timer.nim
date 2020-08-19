@@ -37,8 +37,8 @@ proc add*(timer: var Timer, event: TimerEventNode) =
     timer.wheel.setTimer(event)
     if event.value.repeatTimes != 0 and event.value.first:
       timer.queue.push(initTimerItem(getMonoTime() + initDuration(
-                       milliseconds = event.value.timeout * timer.interval),
-                       timer.wheel.currentTime + event.value.timeout))
+                       milliseconds = (event.value.finishAt - timer.wheel.currentTime) * timer.interval),
+                        event.value.finishAt))
 
 proc add*(timer: var Timer, event: var TimerEvent, timeout: Tick, 
           repeatTimes: int = 1): TimerEventNode =

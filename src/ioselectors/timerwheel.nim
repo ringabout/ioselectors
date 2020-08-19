@@ -22,11 +22,10 @@ type
 
   TimerEvent* = object
     finishAt*: Tick
-    timeout*: Tick
-    originTimeout*: Tick
-    level*: uint8
-    scheduleAt*: uint8
-    repeatTimes*: int
+    originTimeout*: Tick # Supports repetitive events.
+    level*: uint8        # Supports cancellation.
+    scheduleAt*: uint8   # Supports cancellation.
+    repeatTimes*: int    # Supports repetitive events.
     cb*: Callback
     first*: bool
 
@@ -58,7 +57,7 @@ proc initTimerEvent*(cb: Callback): TimerEvent =
   TimerEvent(cb: cb)
 
 proc `$`*(t: TimerEvent): string =
-  $(t.finishAt, t.timeout, t.originTimeout)
+  $(t.finishAt, t.originTimeout)
 
 proc slotsToString*(t: TimerWheel, level: Tick): string =
   result = "["
@@ -119,16 +118,17 @@ template scheduleWhere(
   # mod (2 ^ n - 1)
   var level = 0'u8
   # decide which level
-  while eventNode.value.timeout >= s.duration[level]:
+  let timeout = eventNode.value.finishAt - s.currentTime
+  while timeout >= s.duration[level]:
     inc level
 
     if level >= uint8 numLevels:
       doAssert false, "Number is too large!"
 
   if level == 0'u8:
-    (level, uint8((s.now[0] + eventNode.value.timeout) and mask))
+    (level, uint8((s.now[0] + timeout) and mask))
   else:
-    (level, uint8((s.now[level] + eventNode.value.timeout div s.duration[level - 1] - 1) and mask))
+    (level, uint8((s.now[level] + timeout div s.duration[level - 1] - 1) and mask))
 
 proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: uint8) =
   if eventNode.value.repeatTimes == 0:
@@ -144,14 +144,12 @@ proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: 
 template setupTimerEvent*(s: var TimerWheel, event: var TimerEvent, 
                timeout: Tick, repeatTimes: int): TimerEventNode =
   event.repeatTimes = repeatTimes
-  event.timeout = timeout
-  event.finishAt = s.currentTime + event.timeout
+  event.finishAt = s.currentTime + timeout
   event.originTimeout = timeout
   newDoublyLinkedNode(event)
 
 template updateTimerEventNode*(s: var TimerWheel, eventNode: TimerEventNode) =
-  t.value.timeout = t.value.originTimeout
-  t.value.finishAt = s.currentTime + t.value.timeout
+  t.value.finishAt = s.currentTime + t.value.originTimeout
 
 proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode) =
   ## Returns the number of TimerEvent in TimerEventList.
@@ -202,7 +200,6 @@ proc degrade*(s: var TimerWheel, hlevel: Tick) =
     if node.value.finishAt <= s.currentTime:
       s.execute(node)
     else:
-      node.value.timeout = (node.value.finishAt - s.currentTime)
       s.setDegradeTimer(node)
 
     dec s.taskCounter
