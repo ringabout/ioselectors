@@ -27,7 +27,6 @@ type
     level*: uint8        # Supports cancellation.
     scheduleAt*: uint8   # Supports cancellation.
     cb*: Callback
-    first*: bool
 
   TimerEventNode* = DoublyLinkedNode[TimerEvent]
 
@@ -136,7 +135,6 @@ proc setTimer*(s: var TimerWheel, eventNode: TimerEventNode, level, scheduleAt: 
 
   eventNode.value.level = level
   eventNode.value.scheduleAt = scheduleAt
-  eventNode.value.first = not s.slots[level][scheduleAt].count.bool
 
   s.slots[level][scheduleAt].append eventNode
   inc s.taskCounter

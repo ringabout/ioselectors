@@ -99,6 +99,18 @@ block:
   poll(t, 200)
   doAssert count == 0, $count
 
+block:
+  var t = initTimer(1)
+  var count = 0
+  var event0 = initTimerEvent(proc() = 
+    inc count)
+
+  for i in 1 .. 10:
+    discard t.add(event0, 10)
+
+  poll(t, 20)
+  doAssert count == 10, $count
+
 # block:
 #   var t = initTimer(1)
 #   var count = 0

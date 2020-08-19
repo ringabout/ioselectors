@@ -35,7 +35,8 @@ proc add*(timer: var Timer, event: TimerEventNode) =
 
   if event != nil:
     timer.wheel.setTimer(event)
-    if event.value.repeatTimes != 0 and event.value.first:
+    let count = timer.wheel.slots[event.value.level][event.value.scheduleAt].count
+    if event.value.repeatTimes != 0 and count == 1:
       timer.queue.push(initTimerItem(getMonoTime() + initDuration(
                        milliseconds = (event.value.finishAt - timer.wheel.currentTime) * timer.interval),
                         event.value.finishAt))
@@ -74,6 +75,7 @@ proc update*(s: var Timer, step: Tick) =
 proc process*(timer: var Timer): Option[int] = 
   var count = timer.queue.len
   let now = getMonoTime()
+
 
   while count > 0 and timer.queue[0].finishAt <= now:
     let 
