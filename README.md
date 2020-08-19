@@ -5,7 +5,8 @@ Enhancements for `selectors` module in stdlib and add `wepoll` supports in windo
 
 ## Status
 - [x] Selectors
-- [x] Timer(except cancellation)
+- [x] Timer
+- [x] DelayQueue
 
 ## Installation
 
