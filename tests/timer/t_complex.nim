@@ -6,9 +6,9 @@ block:
   var
     count0 = 0
     count1 = 0
-    event0 = initTimerEvent(() => inc count0)
-    event1a = initTimerEvent(() => inc count1)
-    event1b = initTimerEvent(() => inc count1)
+    event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
+    event1a = initTimerEvent(proc(args: pointer = nil) = inc count1)
+    event1b = initTimerEvent(proc(args: pointer = nil) = inc count1)
     s = initTimerWheel()
 
   discard s.setTimer(event1a, 256)

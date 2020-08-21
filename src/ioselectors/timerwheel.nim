@@ -18,10 +18,7 @@ static:
 type
   Tick* = Natural
 
-  # TODO Unify Callback
-  # proc(args: pointer = nil)
-  # userData: pointer
-  Callback* = proc() {.gcsafe.}
+  Callback* = proc(args: pointer = nil) {.gcsafe.}
 
   TimerEvent* = object
     finishAt*: Tick
@@ -29,6 +26,7 @@ type
     repeatTimes*: int    # Supports repetitive events.
     level*: uint8        # Supports cancellation.
     scheduleAt*: uint8   # Supports cancellation.
+    userData*: pointer
     cb*: Callback
 
   TimerEventNode* = DoublyLinkedNode[TimerEvent]
@@ -55,8 +53,8 @@ proc initTimerWheel*(): TimerWheel =
 proc isActive*(s: TimerWheel): bool =
   s.taskCounter != 0
 
-proc initTimerEvent*(cb: Callback): TimerEvent =
-  TimerEvent(cb: cb)
+proc initTimerEvent*(cb: Callback, userData: pointer = nil): TimerEvent =
+  TimerEvent(cb: cb, userData: userData)
 
 proc `$`*(t: TimerEvent): string =
   $(t.finishAt, t.timeout)
@@ -173,7 +171,7 @@ proc cancel*(s: var TimerWheel, eventNode: TimerEventNode) =
 
 proc execute*(s: var TimerWheel, t: TimerEventNode) =
   if t.value.cb != nil:
-    t.value.cb()
+    t.value.cb(t.value.userData)
 
     if t.value.repeatTimes < 0:
       updateTimerEventNode(s, t)

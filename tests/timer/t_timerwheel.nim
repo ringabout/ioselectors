@@ -16,12 +16,12 @@ import sugar
 block:
   var s = initTimerWheel()
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc(args: pointer = nil) = 
     inc count)
 
 
-  var event1 = initTimerEvent(proc() = discard "first")
-  var event2 = initTimerEvent(proc() = discard "second")
+  var event1 = initTimerEvent(proc(args: pointer = nil) = discard "first")
+  var event2 = initTimerEvent(proc(args: pointer = nil) = discard "second")
 
 
   discard s.setTimer(event0, 5)
@@ -58,7 +58,7 @@ block:
 block:
   var s = initTimerWheel()
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc(args: pointer = nil) = 
     inc count)
 
   # Scheduler does nothing
@@ -95,7 +95,7 @@ block:
 block:
   var s = initTimerWheel()
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc(args: pointer = nil) = 
     inc count)
 
   doAssert count == 0
@@ -128,10 +128,10 @@ block:
 
 
 block:
-  var event1 = initTimerEvent(proc() =
+  var event1 = initTimerEvent(proc(args: pointer = nil) =
     discard)
 
-  var event2 = initTimerEvent(proc() =
+  var event2 = initTimerEvent(proc(args: pointer = nil) =
     discard)
 
   discard event1
@@ -142,9 +142,9 @@ block:
   var count0 = 0
   var count1 = 0
 
-  var event0 = initTimerEvent(() => inc count0)
-  var event1a = initTimerEvent(proc() = inc count1)
-  var event1b = initTimerEvent(proc() = inc count1)
+  var event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
+  var event1a = initTimerEvent(proc(args: pointer = nil) = inc count1)
+  var event1b = initTimerEvent(proc(args: pointer = nil) = inc count1)
 
   var s = initTimerWheel()
   discard s.setTimer(event1a, 16)
@@ -166,7 +166,7 @@ block:
 block:
   var 
     count0 = 0
-    event0 = initTimerEvent(() => inc count0)
+    event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
     s = initTimerWheel()
 
   discard s.setTimer(event0, 786)
@@ -185,7 +185,7 @@ block:
 block:
   var 
     count0 = 0
-    event0 = initTimerEvent(() => inc count0)
+    event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
     s = initTimerWheel()
 
   let n0 = s.setTimer(event0, 786)
@@ -210,7 +210,7 @@ block:
 block:
   var 
     count0 = 0
-    event0 = initTimerEvent(() => inc count0)
+    event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
     s = initTimerWheel()
 
   discard s.setTimer(event0, 10, -1)
@@ -223,7 +223,7 @@ block:
 block:
   var 
     count0 = 0
-    event0 = initTimerEvent(() => inc count0)
+    event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
     s = initTimerWheel()
 
   discard s.setTimer(event0, 10, -1)
@@ -237,7 +237,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 65534, -1)
@@ -248,7 +248,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 65534, -1)
@@ -259,7 +259,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 65534, -1)
@@ -270,7 +270,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 65534, -1)
@@ -281,7 +281,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 65534, -1)
@@ -292,7 +292,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 4098, -1)
@@ -305,7 +305,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 4096, -1)
@@ -329,7 +329,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
 
@@ -347,7 +347,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in 1 .. 100:
@@ -365,7 +365,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in 1 .. 1000:
@@ -384,7 +384,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in 1 .. 10000:
@@ -403,7 +403,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in 1 .. 10000:
@@ -422,7 +422,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in 1 .. 20000:
@@ -441,7 +441,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in countdown(1000, 555):
@@ -457,7 +457,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     for i in 1 .. 875:
@@ -477,7 +477,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 783)
@@ -491,7 +491,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 65535, -1)
@@ -502,7 +502,7 @@ block:
   block:
     var 
       count0 = 0
-      event0 = initTimerEvent(() => inc count0)
+      event0 = initTimerEvent(proc(args: pointer = nil) = inc count0)
       s = initTimerWheel()
 
     discard s.setTimer(event0, 12, 5)

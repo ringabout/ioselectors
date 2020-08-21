@@ -51,7 +51,7 @@ proc cancel*(s: var Timer, eventNode: TimerEventNode) =
 
 proc execute*(s: var Timer, t: TimerEventNode) =
   if t.value.cb != nil:
-    t.value.cb()
+    t.value.cb(t.value.userData)
 
     if t.value.repeatTimes < 0:
       updateTimerEventNode(s.wheel, t)

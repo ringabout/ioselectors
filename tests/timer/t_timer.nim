@@ -15,7 +15,7 @@ include ../../src/ioselectors/timer
 block:
   var t = initTimer(1)
   var count = 0
-  var event0 = initTimerEvent(proc() =
+  var event0 = initTimerEvent(proc(args: pointer = nil) =
     inc count)
 
   # One shot
@@ -50,10 +50,10 @@ block:
 block:
   var t = initTimer(1)
   var count = 0
-  var event0 = initTimerEvent(proc() =
+  var event0 = initTimerEvent(proc(args: pointer = nil) =
     inc count)
 
-  var event1 = initTimerEvent(proc() =
+  var event1 = initTimerEvent(proc(args: pointer = nil) =
     discard)
 
   let n1 = t.add(event0, 15)
@@ -85,7 +85,7 @@ block:
 block:
   var t = initTimer(10)
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc(args: pointer = nil) = 
     inc count)
 
   var a = t.add(event0, 20)
@@ -102,7 +102,7 @@ block:
 block:
   var t = initTimer(1)
   var count = 0
-  var event0 = initTimerEvent(proc() = 
+  var event0 = initTimerEvent(proc(args: pointer = nil) = 
     inc count)
 
   for i in 1 .. 10:
@@ -114,12 +114,12 @@ block:
 # block:
 #   var t = initTimer(1)
 #   var count = 0
-#   var event0 = initTimerEvent(proc() = 
+#   var event0 = initTimerEvent(proc(args: pointer = nil) = 
 #     inc count)
 
 
-#   var event1 = initTimerEvent(proc() = echo "first")
-#   var event2 = initTimerEvent(proc() = echo "second")
+#   var event1 = initTimerEvent(proc(args: pointer = nil) = echo "first")
+#   var event2 = initTimerEvent(proc(args: pointer = nil) = echo "second")
 
 #   discard t.add(event1, 2, -1)
 #   while true:
