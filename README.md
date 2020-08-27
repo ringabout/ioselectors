@@ -10,7 +10,13 @@
 
 Cross platform IO engine and timer for Nim.
 
-Enhancements for `selectors` module in stdlib and add `wepoll` supports in windows.
+Enhancements for `selectors` module in stdlib and add IOCP supports in windows.
+
+`selectors` has little difference with stdlib's except that it adds support for windows(`registerHandle`, `updateHandle`, `registerEvent`). You can read docs in stdlib:
+
+https://nim-lang.org/docs/selectors.html
+
+`Timer` is based on timerwheel which is high performance and scales well. It needs more space than timer based on heap.
 
 ## Status
 - [x] Selectors
