@@ -149,9 +149,6 @@ proc changeFd*(s: SocketHandle|int): int {.inline.} =
 proc restoreFd*(s: SocketHandle|int): int {.inline.} =
   result = s.int shl 2
 
-proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
-  result = s.fds[fd.changeFd].ident != InvalidIdent
-
 proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event], data: T) =
   let fd = socket.changeFd
   s.checkFd(fd)
@@ -275,9 +272,32 @@ proc selectInto*[T](s: Selector[T], timeout: int,
       inc k
     result = count
 
+proc select*[T](s: Selector[T], timeout: int): seq[ReadyKey] =
+  result = newSeq[ReadyKey](MAX_EPOLL_EVENTS)
+  let count = selectInto(s, timeout, result)
+  result.setLen(count)
+
+template isEmpty*[T](s: Selector[T]): bool =
+  (s.count == 0)
+
+template internalContains[T](s: Selector[T], fd: int): bool =
+  s.fds[fd].ident != InvalidIdent
+
+proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
+  result = internalContains(s, fd.changeFd)
 
 proc getData*[T](s: Selector[T], fd: SocketHandle|int): var T {.inline.} =
-  let fdi = fd.int
+  let fdi = fd.changeFd
   s.checkFd(fdi)
-  if fdi in s:
-    result = s.fds[fdi shr 2].data
+  if s.internalContains(fdi):
+    result = s.fds[fdi].data
+
+proc setData*[T](s: Selector[T], fd: SocketHandle|int, data: T): bool =
+  let fdi = fd.changeFd
+  s.checkFd(fdi)
+  if s.internalContains(fdi):
+    s.fds[fdi].data = data
+    result = true
+
+proc getFd*[T](s: Selector[T]): EpollHandle =
+  result = s.epollFd
