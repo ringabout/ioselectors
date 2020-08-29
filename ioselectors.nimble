@@ -12,7 +12,7 @@ srcDir        = "src"
 
 requires "nim >= 1.2.6"
 requires "wepoll >= 0.1.0"
-requires "https://github.com/xflywind/timerwheel"
+requires "timerwheel >= 0.1.0"
 
 task tests, "Tests all":
   exec "testament all"
