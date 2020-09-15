@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.2"
+version       = "0.1.4"
 author        = "flywind"
 description   = "Selectors extension."
 license       = "Apache-2.0"
