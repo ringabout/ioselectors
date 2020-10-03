@@ -13,8 +13,6 @@ const hasThreadSupport* = compileOption("threads") and defined(threadsafe)
 
 
 when hasThreadSupport:
-  import locks
-
   type
     SharedArray*[T] = UncheckedArray[T]
 

@@ -15,6 +15,11 @@ import base
 export wepoll
 
 
+const 
+  MAX_EPOLL_EVENTS = 64
+  numFD = 1024      # Start with a reasonable size, checkFd() will grow this on demand.
+
+
 when hasThreadSupport:
   type
     SelectorImpl[T] = object
@@ -40,9 +45,6 @@ type
   SelectEvent* = ptr SelectEventImpl
 
 proc newSelector*[T](): Selector[T] =
-  # Start with a reasonable size, checkFd() will grow this on demand
-  const numFD = 1024
-
   var epollFD = epoll_create1(0)
 
   if epollFD == nil:
@@ -129,7 +131,6 @@ proc close*(ev: SelectEvent) =
   if res1 != 0 or res2 != 0:
     raiseIOSelectorsError(osLastError())
 
-
 template setKey(s, pident, pevents, pparam, pdata: untyped) =
   var skey = addr(s.fds[pident])
   skey.ident = pident
@@ -143,10 +144,10 @@ template clearKey[T](key: ptr SelectorKey[T]) =
   key.events = {}
   key.data = empty
 
-proc changeFd*(s: SocketHandle|int): int {.inline.} =
+func changeFd*(s: SocketHandle|int): int {.inline.} =
   result = s.int shr 2
 
-proc restoreFd*(s: SocketHandle|int): int {.inline.} =
+func restoreFd*(s: SocketHandle|int): int {.inline.} =
   result = s.int shl 2
 
 proc registerHandle*[T](s: Selector[T], socket: SocketHandle, events: set[Event], data: T) =
@@ -220,7 +221,8 @@ proc unregister*[T](s: Selector[T], socket: int|SocketHandle) =
 template checkFd*(s, f) =
   if f >= s.numFD:
     var numFD = s.numFD
-    while numFD <= f: numFD *= 2
+    while numFD <= f: 
+      numFD = numFD shl 1
     when hasThreadSupport:
       s.fds = reallocSharedArray(s.fds, numFD)
     else:
@@ -229,8 +231,6 @@ template checkFd*(s, f) =
       s.fds[i].ident = InvalidIdent
     s.numFD = numFD
 
-const MAX_EPOLL_EVENTS = 64
-
 proc selectInto*[T](s: Selector[T], timeout: int,
                     results: var openArray[ReadyKey]): int =
 
@@ -238,8 +238,9 @@ proc selectInto*[T](s: Selector[T], timeout: int,
     resTable: array[MAX_EPOLL_EVENTS, EpollEvent]
     maxres = MAX_EPOLL_EVENTS
 
-  if maxres > len(results):
-    maxres = len(results)
+  let length = len(results)
+  if maxres > length:
+    maxres = length
 
   # verifySelectParams(timeout)
 
@@ -272,7 +273,7 @@ proc selectInto*[T](s: Selector[T], timeout: int,
       inc k
     result = count
 
-proc select*[T](s: Selector[T], timeout: int): seq[ReadyKey] =
+proc select*[T](s: Selector[T], timeout: int): seq[ReadyKey] {.inline.} =
   result = newSeq[ReadyKey](MAX_EPOLL_EVENTS)
   let count = selectInto(s, timeout, result)
   result.setLen(count)
@@ -283,7 +284,7 @@ template isEmpty*[T](s: Selector[T]): bool =
 template internalContains[T](s: Selector[T], fd: int): bool =
   s.fds[fd].ident != InvalidIdent
 
-proc contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
+func contains*[T](s: Selector[T], fd: SocketHandle|int): bool {.inline.} =
   result = internalContains(s, fd.changeFd)
 
 proc getData*[T](s: Selector[T], fd: SocketHandle|int): var T {.inline.} =
@@ -299,5 +300,5 @@ proc setData*[T](s: Selector[T], fd: SocketHandle|int, data: T): bool =
     s.fds[fdi].data = data
     result = true
 
-proc getFd*[T](s: Selector[T]): EpollHandle =
+func getFd*[T](s: Selector[T]): EpollHandle =
   result = s.epollFd
