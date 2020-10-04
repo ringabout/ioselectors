@@ -6,7 +6,7 @@
 
 ![License: Apache-2.0](https://img.shields.io/github/license/xflywind/ioselectors)
 [![Version](https://img.shields.io/github/v/release/xflywind/ioselectors?include_prereleases)](https://github.com/pxflywind/ioselectors/releases)
-[![buy me a coffee](https://img.shields.io/badge/donate-buy%20me%20a%20coffee-orange.svg)](https://github.com/planety/prologue#donate)
+
 
 Cross platform IO engine and timer for Nim.
 
