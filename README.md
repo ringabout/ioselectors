@@ -8,7 +8,7 @@
 [![Version](https://img.shields.io/github/v/release/xflywind/ioselectors?include_prereleases)](https://github.com/pxflywind/ioselectors/releases)
 
 
-Cross platform IO engine and timer for Nim.
+Cross platform IO engine for Nim.
 
 Enhancements for `selectors` module in stdlib and add IOCP supports in windows.
 
@@ -16,12 +16,6 @@ Enhancements for `selectors` module in stdlib and add IOCP supports in windows.
 
 https://nim-lang.org/docs/selectors.html
 
-`Timer` is based on timerwheel which is high performance and scales well. It needs more space than timer based on heap.
-
-## Status
-- [x] Selectors
-- [x] Timer
-- [x] DelayQueue
 
 ## Installation
 
